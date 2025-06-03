@@ -38,6 +38,32 @@ const LoginForm = ({ onLoginSuccess }) => {
     generateCaptcha();
   }, [generateCaptcha]);
 
+  // Handle Enter key navigation for Step 1
+  const handleStep1KeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleFirstSignIn();
+    }
+  };
+
+  // Handle Enter key navigation for Step 2
+  const handleStep2KeyDown = (e, currentField) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      
+      if (currentField === 'password') {
+        // Move focus to captcha field
+        const captchaInput = document.querySelector('input[placeholder="Enter the captcha..."]');
+        if (captchaInput) {
+          captchaInput.focus();
+        }
+      } else if (currentField === 'captcha') {
+        // Submit the form
+        handleFinalSignIn();
+      }
+    }
+  };
+
   // Simulate API call with axios-like structure
   const apiCall = async (endpoint, data) => {
     // Simulating axios API call
@@ -82,6 +108,13 @@ const LoginForm = ({ onLoginSuccess }) => {
       const response = await apiCall('/api/validate-user', { userIdAlias });
       if (response.data.success) {
         setCurrentStep(2);
+        // Focus on password field after transition
+        setTimeout(() => {
+          const passwordInput = document.querySelector('input[type="password"], input[type="text"][placeholder="Enter Password"]');
+          if (passwordInput) {
+            passwordInput.focus();
+          }
+        }, 600); // Wait for transition to complete
       }
     } catch (error) {
       setErrors({ userIdAlias: 'User not found. Please check your credentials.' });
@@ -185,11 +218,13 @@ const LoginForm = ({ onLoginSuccess }) => {
                             setUserIdAlias(e.target.value);
                             setErrors(prev => ({ ...prev, userIdAlias: '' }));
                           }}
+                          onKeyDown={handleStep1KeyDown}
                           placeholder="Enter userid / aliasname"
                           className={`w-full px-2 py-1 border focus:ring-2 text-sm focus:ring-black-400 focus:border-transparent pr-8 transition-colors ${
                             errors.userIdAlias ? 'border-red-500' : 'border-gray-300'
                           }`}
                           disabled={loading}
+                          autoFocus
                         />
                         <User className="absolute right-3 top-1.5 h-4 w-4 text-gray-400" />
                       </div>
@@ -246,6 +281,7 @@ const LoginForm = ({ onLoginSuccess }) => {
                             setPassword(e.target.value);
                             setErrors(prev => ({ ...prev, password: '' }));
                           }}
+                          onKeyDown={(e) => handleStep2KeyDown(e, 'password')}
                           placeholder="Enter Password"
                           className={`w-full px-2 py-1 border text-sm focus:ring-2 focus:ring-black-400 focus:border-transparent pr-10 transition-colors ${
                             errors.password ? 'border-red-500' : 'border-gray-300'
@@ -277,6 +313,7 @@ const LoginForm = ({ onLoginSuccess }) => {
                             setCaptcha(e.target.value);
                             setErrors(prev => ({ ...prev, captcha: '' }));
                           }}
+                          onKeyDown={(e) => handleStep2KeyDown(e, 'captcha')}
                           placeholder="Enter the captcha..."
                           className={`w-full px-2 py-1 border focus:ring-2 text-sm focus:ring-black-400 focus:border-transparent pr-8 transition-colors ${
                             errors.captcha ? 'border-red-500' : 'border-gray-300'
