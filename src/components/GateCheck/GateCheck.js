@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Filter, FileText, Plus, MoreVertical, Phone, Clock, User, Users } from 'lucide-react';
 
-const GateCheck = () => {
-  const [visitors, setVisitors] = useState([]);
+const GateCheck = ({ visitors, setVisitors, totalVisitors }) => {
   const [filteredVisitors, setFilteredVisitors] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -58,18 +57,20 @@ const GateCheck = () => {
     }
   ];
 
-  // Load mock data
+  // Load mock data - FIXED: Only load if visitors array is empty
   useEffect(() => {
     const loadVisitors = () => {
       setTimeout(() => {
-        setVisitors(mockVisitors);
-        setFilteredVisitors(mockVisitors);
+        // Only set mock data if no visitors exist
+        if (visitors.length === 0) {
+          setVisitors(mockVisitors);
+        }
         setLoading(false);
       }, 1000);
     };
 
     loadVisitors();
-  }, []);
+  }, [setVisitors, visitors.length]);
 
   // Filter visitors based on search and status
   useEffect(() => {
@@ -100,8 +101,9 @@ const GateCheck = () => {
     return status === 'in' ? 'bg-green-500' : 'bg-red-500';
   };
 
+  // Calculate stats from current visitors data
   const statsData = {
-    totalVisitors: visitors.length,
+    totalVisitors: totalVisitors,
     visitorsIn: visitors.filter(v => v.status === 'in').length,
     visitorsOut: visitors.filter(v => v.status === 'out').length
   };
@@ -115,60 +117,59 @@ const GateCheck = () => {
   }
 
   return (
-    <div className="min-h-screen p-4 space-y-6 bg-gray-50">
+    <div className="min-h-screen p-0 space-y-6 bg-gray-50">
       {/* Header */}
-      <div className="p-6 bg-white rounded-lg shadow-sm">
-        <div className="flex flex-col space-y-4 lg:flex-row lg:items-center lg:justify-between lg:space-y-0">
-          <div>
-            <h1 className="flex items-center text-2xl font-bold text-gray-900">
-              <Users className="w-8 h-8 mr-3 text-blue-600" />
-              Visitors
-            </h1>
-            <p className="mt-1 text-gray-600">Manage and track visitor entries</p>
+      <div className="m-0 bg-white rounded-lg shadow-sm">
+        <div className="p-6">
+          <div className="flex flex-col space-y-4 lg:flex-row lg:items-center lg:justify-between lg:space-y-0">
+            <div>
+              <h1 className="flex items-center text-2xl font-bold text-gray-900">
+                <Users className="w-8 h-8 mr-3 text-green-600" />
+                Visitors
+              </h1>
+              <p className="mt-1 text-gray-600">Manage and track visitor entries</p>
+            </div>
+            
+            {/* Action Buttons */}
+            <div className="flex flex-wrap gap-3">
+              <button className="flex items-center px-4 py-2 text-white transition-colors bg-green-400 rounded-lg hover:bg-green-600">
+                <Plus className="w-4 h-4 mr-2" />
+                Add Visitor
+              </button>
+              <button className="flex items-center px-4 py-2 text-gray-700 transition-colors border border-gray-300 rounded-lg hover:bg-gray-50">
+                <FileText className="w-4 h-4 mr-2" />
+                Excel
+              </button>
+            </div>
           </div>
-          
-          {/* Action Buttons */}
-          <div className="flex flex-wrap gap-3">
-            <button className="flex items-center px-4 py-2 text-white transition-colors bg-blue-600 rounded-lg hover:bg-blue-700">
-              <Plus className="w-4 h-4 mr-2" />
-              Add Visitor
-            </button>
-            <button className="flex items-center px-4 py-2 text-gray-700 transition-colors border border-gray-300 rounded-lg hover:bg-gray-50">
-              <FileText className="w-4 h-4 mr-2" />
-              Excel
-            </button>
-          </div>
-        </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 gap-4 mt-6 md:grid-cols-3">
-          <div className="p-4 text-white rounded-lg bg-gradient-to-r from-blue-500 to-blue-600">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-blue-100">Total Visitors</p>
-                <p className="text-2xl font-bold">{statsData.totalVisitors}</p>
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 gap-4 mt-4 md:grid-cols-6">
+            <div className="p-4 text-white rounded-lg bg-gradient-to-r from-blue-400 to-blue-500">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-blue-100">Total Visitors</p>
+                  <p className="text-xl font-bold">{statsData.totalVisitors}</p>
+                </div>
               </div>
-              <User className="w-8 h-8 text-blue-200" />
             </div>
-          </div>
-          
-          <div className="p-4 text-white rounded-lg bg-gradient-to-r from-green-500 to-green-600">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-green-100">Currently In</p>
-                <p className="text-2xl font-bold">{statsData.visitorsIn}</p>
+            
+            <div className="p-4 text-white rounded-lg bg-gradient-to-r from-green-400 to-green-500">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-green-100">Currently In</p>
+                  <p className="text-2xl font-bold">{statsData.visitorsIn}</p>
+                </div>
               </div>
-              <div className="w-3 h-3 bg-green-300 rounded-full animate-pulse"></div>
             </div>
-          </div>
-          
-          <div className="p-4 text-white rounded-lg bg-gradient-to-r from-red-500 to-red-600">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-red-100">Checked Out</p>
-                <p className="text-2xl font-bold">{statsData.visitorsOut}</p>
+            
+            <div className="p-4 text-white rounded-lg bg-gradient-to-r from-red-400 to-red-500">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-red-100">Checked Out</p>
+                  <p className="text-2xl font-bold">{statsData.visitorsOut}</p>
+                </div>
               </div>
-              <div className="w-3 h-3 bg-red-300 rounded-full"></div>
             </div>
           </div>
         </div>
@@ -185,7 +186,7 @@ const GateCheck = () => {
               placeholder="Search visitors..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full py-2 pl-10 pr-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full py-2 pl-10 pr-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-none focus:border-transparent"
             />
           </div>
 
@@ -220,7 +221,7 @@ const GateCheck = () => {
       </div>
 
       {/* Visitors Grid */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-6 lg:grid-cols-6 xl:grid-cols-6">
         {filteredVisitors.map((visitor) => (
           <div key={visitor.id} className="p-4 transition-shadow duration-200 bg-white rounded-lg shadow-sm hover:shadow-md">
             <div className="flex items-start justify-between mb-3">

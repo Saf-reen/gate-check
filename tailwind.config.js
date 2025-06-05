@@ -1,8 +1,18 @@
 // tailwind.config.js
 module.exports = {
-  content: ["./src/**/*.{js,jsx,ts,tsx}"],
   theme: {
-    extend: {},
+    extend: {
+      colors: {
+        navy: {
+          900: '#3D365C',
+        },
+        purpleCustom: {
+          900: '#7C4585',
+        },
+      },
+    },
   },
-  plugins: [],
-}
+  content: [
+    "./src/**/*.{js,jsx,ts,tsx}", // 👈 Add paths to all source files
+  ],
+};

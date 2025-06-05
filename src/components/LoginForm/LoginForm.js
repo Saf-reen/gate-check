@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Eye, EyeOff, RefreshCw, User, Loader2, ArrowLeft } from 'lucide-react';
+import { Link } from 'react-router-dom';
+// import bg_img from '../asset/bg_img.jpg'; // Assuming you have a background image
+ // Assuming you have a background image
 
-const LoginForm = ({ onLoginSuccess }) => {
+const LoginForm = ({ onLogin, demoMode = true }) => { // Changed from onLoginSuccess to onLogin
   const [currentStep, setCurrentStep] = useState(1);
   const [showPassword, setShowPassword] = useState(false);
   const [userIdAlias, setUserIdAlias] = useState('');
@@ -70,19 +73,20 @@ const LoginForm = ({ onLoginSuccess }) => {
     return new Promise((resolve, reject) => {
       setTimeout(() => {
         if (endpoint === '/api/validate-user' && data.userIdAlias) {
-          if (data.userIdAlias.toLowerCase() === 'user') {
-            resolve({ data: { success: true, message: 'User validated' } });
-          } else {
-            resolve({ data: { success: true, message: 'User found' } });
-          }
+          resolve({ data: { success: true, message: 'User validated' } });
         } else if (endpoint === '/api/login' && data.password && data.captcha) {
-          if (data.captcha === captchaValue) {
+          if (data.captcha.toUpperCase() === captchaValue.toUpperCase()) {
             resolve({ 
               data: { 
                 success: true, 
                 message: 'Login successful',
                 token: 'mock-jwt-token',
-                user: { id: 1, name: data.userIdAlias, role: 'user' }
+                user: { 
+                  id: 1, 
+                  name: data.userIdAlias, 
+                  email: data.userIdAlias + '@example.com', // Add email for App.js compatibility
+                  role: 'admin' 
+                }
               } 
             });
           } else {
@@ -152,8 +156,15 @@ const LoginForm = ({ onLoginSuccess }) => {
       });
       
       if (response.data.success) {
-        // Pass user data to parent component
-        onLoginSuccess(response.data.user);
+        // Prepare user data for App.js handleLogin function
+        const userData = {
+          email: response.data.user.email,
+          password: password, // Include password for App.js validation
+          name: response.data.user.name
+        };
+        
+        // Call onLogin with the expected parameters: (userData, token, captchaValue)
+        await onLogin(userData, response.data.token, captcha);
       }
     } catch (error) {
       const errorMessage = error.response?.data?.error || 'Login failed. Please try again.';
@@ -177,7 +188,9 @@ const LoginForm = ({ onLoginSuccess }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-100 via-sage to-blue-50">
+    <div className="min-h-screen bg-center bg-cover bg-gradient-to-br from-green-100 to-yellow-50 no-repeatbg"
+    // style ={{ backgroundImage: `url(${bg_img})` }}
+    >
       <div className="flex items-center justify-center min-h-screen p-2 sm:p-4">
         <div className="relative w-full max-w-3xl mx-auto overflow-hidden">
           
@@ -192,7 +205,7 @@ const LoginForm = ({ onLoginSuccess }) => {
           <div className="relative bg-white rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden min-h-[400px] sm:min-h-[500px] flex flex-col lg:flex-row">
             
             {/* Right Panel - Login Forms */}
-            <div className={`${isMobile ? 'order-1' : 'order-2'} flex-1 relative bg-gradient-to-br from-blue-900 to-blue-400`}>
+            <div className={`${isMobile ? 'order-1' : 'order-2'} flex-1 relative bg-gradient-to-br from-green-600 to-yellow-100`}>
               
               {/* Step 1 - Initial Login */}
               <div className={`absolute inset-0 p-4 sm:p-8 lg:p-12 flex flex-col justify-center transition-transform duration-500 ease-in-out ${
@@ -201,7 +214,7 @@ const LoginForm = ({ onLoginSuccess }) => {
                 <div className="w-full max-w-sm p-4 mx-auto bg-white shadow-xl rounded-xl sm:p-8">
                   
                   <div className="mb-4 text-center sm:mb-8">
-                    <h1 className="mb-2 text-base font-bold tracking-wider text-blue-900 sm:text-lg sm:mb-4">SMART CHECK</h1>
+                    <h1 className="mb-2 text-base font-bold tracking-wider text-green-800 sm:text-lg sm:mb-4">SMART CHECK</h1>
                     <h2 className="text-xl font-bold text-gray-800 sm:text-xl">Sign In</h2>
                   </div>
 
@@ -260,13 +273,12 @@ const LoginForm = ({ onLoginSuccess }) => {
                   {/* Organization Header */}
                   <div className="mb-6 text-center sm:mb-8">
                     <div className="flex justify-center m-2">
-                      <div className="flex items-center justify-center w-8 h-8 border-2 border-blue-900 rounded-full sm:w-12 sm:h-12">
-                        <span className="text-sm font-bold text-blue-900 sm:text-sm">S-C</span>
+                      <div className="flex items-center justify-center w-8 h-8 border-2 border-green-800 rounded-full sm:w-12 sm:h-12">
+                        <span className="text-sm font-bold text-green-800 sm:text-sm">S-C</span>
                       </div>
                     </div>
                     <h2 className="font-semibold text-gray-800 text-md sm:text-md">SRIA</h2>
                   </div>
-
 
                   <div className="space-y-2 sm:space-y-4">
                     <div>
@@ -364,14 +376,15 @@ const LoginForm = ({ onLoginSuccess }) => {
                       )}
                     </button>
 
-                    <div className="text-center">
-                      <button 
-                        onClick={() => alert('Forgot password functionality would be implemented here')}
-                        className="text-sm text-gray-600 transition-colors hover:text-gray-800 hover:underline"
+                    <div className="pl-10 text-center">
+                      {/* <button 
+                      href="/forgot-password"
+                      className="text-sm text-gray-600 transition-colors hover:text-gray-800 hover:underline"
                       >
                         Forgot password?
-                      </button>
-                    </div>
+                      </button> */}
+                      <Link to="/forgot-password">Forgot Password?</Link>
+                    </div>
                   </div>
                 </div>
               </div>

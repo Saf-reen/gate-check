@@ -18,7 +18,7 @@ const Navbar = ({ user, onSidebarToggle, onLogout }) => {
           </button>
 
           {/* Search bar */}
-          <div className="items-center hidden md:flex">
+          {/* <div className="items-center hidden md:flex">
             <div className="relative">
               <Search className="absolute w-4 h-4 text-gray-400 transform -translate-y-1/2 left-3 top-1/2" />
               <input
@@ -27,7 +27,7 @@ const Navbar = ({ user, onSidebarToggle, onLogout }) => {
                 className="py-1 pl-8 pr-2 text-sm border border-gray-300 rounded-sm focus:ring-2 focus:ring-pruple-400 focus:border-transparent w-58"
               />
             </div>
-          </div>
+          </div> */}
         </div>
 
         {/* Right side */}
@@ -36,7 +36,7 @@ const Navbar = ({ user, onSidebarToggle, onLogout }) => {
           {/* <button className="relative p-1 transition-colors rounded-sm hover:bg-gray-100">
             <Bell className="w-5 h-5 text-gray-600" /> */}
             {/* Notification badge */}
-            {/* <span className="absolute w-2 h-2 bg-blue-200 rounded-full top-1 right-1"></span>
+            {/* <span className="absolute w-2 h-2 bg-green-600 rounded-full top-1 right-1"></span>
           </button> */}
 
           {/* User menu */}
@@ -45,7 +45,7 @@ const Navbar = ({ user, onSidebarToggle, onLogout }) => {
               onClick={() => setShowUserMenu(!showUserMenu)}
               className="flex items-center p-1 space-x-2 transition-colors rounded-sm hover:bg-gray-100"
             >
-              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-blue-900 to-blue-400">
+              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-green-600 to-yellow-100">
                 <span className="text-sm font-semibold text-white">
                   {user?.name?.charAt(0)?.toUpperCase() || 'U'}
                 </span>
@@ -82,7 +82,7 @@ const Navbar = ({ user, onSidebarToggle, onLogout }) => {
                     setShowUserMenu(false);
                     onLogout();
                   }}
-                  className="flex items-center w-full px-2 py-1 space-x-1 text-sm text-blue-900 transition-colors hover:bg-blue-50"
+                  className="flex items-center w-full px-2 py-1 space-x-1 text-sm text-green-600 transition-colrs hover:bg-green-20"
                 >
                   <LogOut className="w-4 h-3" />
                   <span>Sign out</span>
