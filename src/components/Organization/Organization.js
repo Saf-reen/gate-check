@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
-import { FaBuilding, FaPlus, FaTimes, FaUsers, FaCalendar, FaEnvelope, FaEye } from 'react-icons/fa';
+import React, { useState, useMemo } from 'react';
+import { FaBuilding, FaPlus, FaTimes, FaUsers, FaCalendar, FaEnvelope, FaEye, FaSearch } from 'react-icons/fa';
 import AddUserModal from '../Users/AddUserModal';
 import UserManagement from '../Users/UserManagement';
+
 
 const Organization = ({ userProfile, user, onLogout }) => {
   const [organizations, setOrganizations] = useState([]);
@@ -10,11 +11,24 @@ const Organization = ({ userProfile, user, onLogout }) => {
   const [showUserManagement, setShowUserManagement] = useState(false);
   const [selectedOrgId, setSelectedOrgId] = useState(null);
   const [selectedOrganization, setSelectedOrganization] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     establishedDate: ''
   });
+
+  // Filter organizations based on search query
+  const filteredOrganizations = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return organizations;
+    }
+
+    const query = searchQuery.toLowerCase().trim();
+    return organizations.filter(org => 
+      org.name.toLowerCase().includes(query)
+    );
+  }, [organizations, searchQuery]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -24,8 +38,15 @@ const Organization = ({ userProfile, user, onLogout }) => {
     }));
   };
 
-  const handleAddOrganization = (e) => {
-    e.preventDefault();
+  const handleSearchChange = (e) => {
+    setSearchQuery(e.target.value);
+  };
+
+  const clearSearch = () => {
+    setSearchQuery('');
+  };
+
+  const handleAddOrganization = () => {
     if (formData.name && formData.email && formData.establishedDate) {
       const newOrg = {
         id: Date.now(),
@@ -127,22 +148,88 @@ const Organization = ({ userProfile, user, onLogout }) => {
               </button>
             </div>
 
+            {/* Search Bar */}
+            <div className="relative max-w-md">
+              <div className="relative">
+                <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={handleSearchChange}
+                  placeholder="Search organizations by name..."
+                  className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white shadow-sm"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={clearSearch}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1 hover:bg-gray-100 rounded-full transition-colors"
+                  >
+                    <FaTimes className="w-3 h-3 text-gray-400" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Search Results Info */}
+            {searchQuery && (
+              <div className="flex items-center justify-between text-sm text-gray-600">
+                <span>
+                  {filteredOrganizations.length === 0 
+                    ? 'No organizations found' 
+                    : `${filteredOrganizations.length} organization${filteredOrganizations.length !== 1 ? 's' : ''} found`
+                  } for "{searchQuery}"
+                </span>
+                {filteredOrganizations.length > 0 && (
+                  <button
+                    onClick={clearSearch}
+                    className="text-green-600 hover:text-green-700 font-medium"
+                  >
+                    Clear search
+                  </button>
+                )}
+              </div>
+            )}
+
             {/* Organizations List or Empty State */}
-            {organizations.length === 0 ? (
+            {filteredOrganizations.length === 0 ? (
               <div className="py-16 text-center bg-white shadow-lg rounded-xl">
-                <FaBuilding className="w-24 h-24 mx-auto mb-6 text-green-600" />
-                <h2 className="mb-4 text-2xl font-bold text-gray-800">No Organizations Registered</h2>
-                <p className="mb-8 text-gray-600">Get started by adding your first organization</p>
-                <button
-                  onClick={() => setShowAddForm(true)}
-                  className="px-8 py-3 text-white transition-colors bg-green-600 rounded-lg hover:bg-green-700"
-                >
-                  Add Your First Organization
-                </button>
+                {searchQuery ? (
+                  <>
+                    <FaSearch className="w-24 h-24 mx-auto mb-6 text-gray-400" />
+                    <h2 className="mb-4 text-2xl font-bold text-gray-800">No Organizations Found</h2>
+                    <p className="mb-8 text-gray-600">
+                      No organizations match your search for "{searchQuery}"
+                    </p>
+                    <button
+                      onClick={clearSearch}
+                      className="px-8 py-3 text-green-600 bg-green-50 rounded-lg hover:bg-green-100 transition-colors mr-4"
+                    >
+                      Clear Search
+                    </button>
+                    <button
+                      onClick={() => setShowAddForm(true)}
+                      className="px-8 py-3 text-white transition-colors bg-green-600 rounded-lg hover:bg-green-700"
+                    >
+                      Add New Organization
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <FaBuilding className="w-24 h-24 mx-auto mb-6 text-green-600" />
+                    <h2 className="mb-4 text-2xl font-bold text-gray-800">No Organizations Registered</h2>
+                    <p className="mb-8 text-gray-600">Get started by adding your first organization</p>
+                    <button
+                      onClick={() => setShowAddForm(true)}
+                      className="px-8 py-3 text-white transition-colors bg-green-600 rounded-lg hover:bg-green-700"
+                    >
+                      Add Your First Organization
+                    </button>
+                  </>
+                )}
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {organizations.map((org) => (
+                {filteredOrganizations.map((org) => (
                   <div key={org.id} className="p-6 transition-shadow bg-white shadow-lg rounded-xl hover:shadow-xl">
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center space-x-3">
@@ -209,7 +296,7 @@ const Organization = ({ userProfile, user, onLogout }) => {
               </button>
             </div>
 
-            <form onSubmit={handleAddOrganization} className="p-6">
+            <div className="p-6">
               <div className="space-y-4">
                 <div>
                   <label className="block mb-2 text-sm font-medium text-gray-700">
@@ -222,7 +309,6 @@ const Organization = ({ userProfile, user, onLogout }) => {
                     onChange={handleInputChange}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                     placeholder="Enter organization name"
-                    required
                   />
                 </div>
 
@@ -237,7 +323,6 @@ const Organization = ({ userProfile, user, onLogout }) => {
                     onChange={handleInputChange}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                     placeholder="org@example.com"
-                    required
                   />
                 </div>
 
@@ -251,7 +336,6 @@ const Organization = ({ userProfile, user, onLogout }) => {
                     value={formData.establishedDate}
                     onChange={handleInputChange}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    required
                   />
                 </div>
               </div>
@@ -265,13 +349,14 @@ const Organization = ({ userProfile, user, onLogout }) => {
                   Cancel
                 </button>
                 <button
-                  type="submit"
+                  type="button"
+                  onClick={handleAddOrganization}
                   className="flex-1 px-4 py-2 text-white transition-colors bg-green-600 rounded-lg hover:bg-green-700"
                 >
                   Add Organization
                 </button>
               </div>
-            </form>
+            </div>
           </div>
         </div>
       )}
