@@ -7,7 +7,7 @@ import Organization from './components/Organization/Organization';
 import AddUserModal from './components/Users/AddUserModal';
 import Navbar from './components/Common/Navbar';
 import LoginForm from './components/LoginForm/LoginForm';
-import ForgotPassword from './components/LoginForm/ForgotPassword'; // Import ForgotPassword component
+import ForgotPassword from './components/LoginForm/ForgotPassword';
 
 // Configuration for demo/production mode
 const DEMO_MODE = true; // Set to false to enable full authentication
@@ -33,7 +33,7 @@ const LoadingSpinner = () => (
 );
 
 function App() {
-  // State management - FIXED: Correct useState declaration
+  // State management
   const [visitors, setVisitors] = useState([]);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userProfile, setUserProfile] = useState(null);
@@ -186,7 +186,7 @@ function App() {
                       {/* Default redirect */}
                       <Route path="/" element={<Navigate to="/dashboard" replace />} />
                       
-                      {/* Main Routes - FIXED: Correct props passing */}
+                      {/* Main Routes */}
                       <Route 
                         path="/dashboard" 
                         element={
@@ -211,7 +211,13 @@ function App() {
                       />
                       <Route 
                         path="/organization" 
-                        element={<Organization userProfile={userProfile} />} 
+                        element={
+                          <Organization 
+                            userProfile={userProfile}
+                            user={userProfile}
+                            onLogout={handleLogout}
+                          />
+                        } 
                       />
                       <Route 
                         path="/user" 

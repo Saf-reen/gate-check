@@ -75,7 +75,7 @@ const LoginForm = ({ onLogin, demoMode = true }) => { // Changed from onLoginSuc
         if (endpoint === '/api/validate-user' && data.userIdAlias) {
           resolve({ data: { success: true, message: 'User validated' } });
         } else if (endpoint === '/api/login' && data.password && data.captcha) {
-          if (data.captcha.toUpperCase() === captchaValue.toUpperCase()) {
+          if (data.captcha === captchaValue) {
             resolve({ 
               data: { 
                 success: true, 
@@ -139,7 +139,7 @@ const LoginForm = ({ onLogin, demoMode = true }) => { // Changed from onLoginSuc
     } else if (captcha.toUpperCase() !== captchaValue.toUpperCase()) {
       newErrors.captcha = 'Captcha does not match';
     }
-
+      
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       return;
