@@ -212,7 +212,7 @@ const LoginForm = ({ onLogin, demoMode = true }) => { // Changed from onLoginSuc
               <div className={`absolute inset-0 p-4 sm:p-8 lg:p-12 flex flex-col justify-center transition-transform duration-500 ease-in-out ${
                 currentStep === 1 ? 'translate-x-0' : '-translate-x-full'
               }`}>
-                <div className="w-full max-w-sm p-4 mx-auto bg-white border-2 border-green-800 border-solid shadow-xl rounded-xl sm:p-8">
+                <div className="w-full max-w-sm p-4 mx-auto bg-white border-2 border-green-600 border-solid shadow-xl rounded-xl sm:p-8">
                   
                   <div className="mb-4 text-center sm:mb-8">
                     <h1 className="mb-2 text-base font-bold tracking-wider text-green-600 sm:text-lg sm:mb-4">SMART CHECK</h1>
@@ -274,7 +274,7 @@ const LoginForm = ({ onLogin, demoMode = true }) => { // Changed from onLoginSuc
                   {/* Organization Header */}
                   <div className="mb-6 text-center sm:mb-8">
                     <div className="flex justify-center m-2">
-                      <div className="flex items-center justify-center w-8 h-8 border-2 border-green-800 rounded-full sm:w-12 sm:h-12">
+                      <div className="flex items-center justify-center w-8 h-8 border-2 border-green-600 rounded-full sm:w-12 sm:h-12">
                         <span className="text-sm font-bold text-green-800 sm:text-sm">S-C</span>
                       </div>
                     </div>

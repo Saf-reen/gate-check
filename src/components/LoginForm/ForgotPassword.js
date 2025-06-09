@@ -319,7 +319,7 @@ const ForgotPassword = () => {
             <div className={`${isMobile ? 'order-1' : 'order-2'} flex-1 relative bg-white`}>
               
               <div className="absolute inset-0 flex flex-col justify-center p-4 sm:p-8 lg:p-12">
-                <div className="w-full max-w-sm p-4 mx-auto bg-white border-2 border-green-900 border-solid shadow-xl rounded-xl sm:p-8">
+                <div className="w-full max-w-sm p-4 mx-auto bg-white border-2 border-green-600 border-solid shadow-xl rounded-xl sm:p-8">
                   
                   {/* Header */}
                   <div className="mb-4 text-center sm:mb-8">
