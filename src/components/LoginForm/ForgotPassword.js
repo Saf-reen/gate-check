@@ -92,6 +92,33 @@ const ForgotPassword = () => {
     return errors.length === 0;
   };
 
+  // Handle Enter key press for navigation
+  const handleKeyPress = (e, currentField) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      
+      if (currentStep === "email") {
+        if (currentField === "email") {
+          handleEmailSubmit(e);
+        }
+      } else if (currentStep === "otp") {
+        if (currentField === "otp") {
+          handleOtpSubmit(e);
+        }
+      } else if (currentStep === "reset") {
+        if (currentField === "newPassword") {
+          // Focus on confirm password field
+          const confirmPasswordField = document.querySelector('input[placeholder="Confirm new password"]');
+          if (confirmPasswordField) {
+            confirmPasswordField.focus();
+          }
+        } else if (currentField === "confirmPassword") {
+          handlePasswordReset(e);
+        }
+      }
+    }
+  };
+
   // Send OTP request
   const handleEmailSubmit = async (e) => {
     e.preventDefault();
@@ -273,25 +300,26 @@ const ForgotPassword = () => {
   }, [currentStep, resendEnabled, resendTimer]);
 
   return (
-    <div className="min-h-screen bg-center bg-cover bg-gradient-to-br from-green-100 to-yellow-50 no-repeatbg">
-      <div className="flex items-center justify-center min-h-screen p-2 sm:p-4">
-        <div className="relative w-full max-w-3xl mx-auto overflow-hidden">
+    <div className="flex items-center justify-center w-full h-screen bg-white">
+    <div className="w-full h-full bg-white">
+      <div className="flex items-center justify-center h-screen p-2 sm:p-4">
+        <div className="relative w-full mx-auto overflow-hidden">
           
           {/* Background geometric shapes - responsive */}
           <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            <div className="absolute w-16 h-16 transform bg-gray-200 rounded-lg top-5 left-5 sm:top-10 sm:left-10 sm:w-32 sm:h-32 opacity-30 rotate-12 animate-pulse"></div>
+            <div className="absolute w-16 h-16 transform bg-green-200 rounded-lg top-5 left-5 sm:top-10 sm:left-10 sm:w-32 sm:h-32 opacity-30 rotate-12 animate-pulse"></div>
             <div className="absolute w-12 h-12 bg-pink-200 rounded-full top-20 right-10 sm:top-40 sm:right-20 sm:w-24 sm:h-24 opacity-40 animate-bounce"></div>
             <div className="absolute w-16 h-16 transform rounded-lg opacity-25 bottom-10 left-1/4 sm:bottom-20 sm:w-28 sm:h-28 bg-black-200 -rotate-6 animate-pulse"></div>
-            <div className="absolute w-10 h-10 bg-gray-300 rounded-full top-1/3 left-1/3 sm:w-20 sm:h-20 opacity-20 animate-ping"></div>
+            <div className="absolute w-10 h-10 bg-green-300 rounded-full top-1/3 left-1/3 sm:w-20 sm:h-20 opacity-20 animate-ping"></div>
           </div>
 
-          <div className="relative bg-white rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden min-h-[400px] sm:min-h-[500px] flex flex-col lg:flex-row">
+          <div className="relative flex flex-col min-h-screen overflow-hidden bg-white shadow-2xl sm:min-h-screen lg:flex-row">
             
             {/* Main Panel - Forgot Password Form */}
-            <div className={`${isMobile ? 'order-1' : 'order-2'} flex-1 relative bg-gradient-to-br from-green-600 to-yellow-100`}>
+            <div className={`${isMobile ? 'order-1' : 'order-2'} flex-1 relative bg-white`}>
               
               <div className="absolute inset-0 flex flex-col justify-center p-4 sm:p-8 lg:p-12">
-                <div className="w-full max-w-sm p-4 mx-auto bg-white shadow-xl rounded-xl sm:p-8">
+                <div className="w-full max-w-sm p-4 mx-auto bg-white border-2 border-green-900 border-solid shadow-xl rounded-xl sm:p-8">
                   
                   {/* Header */}
                   <div className="mb-4 text-center sm:mb-8">
@@ -316,6 +344,7 @@ const ForgotPassword = () => {
                             type="email"
                             value={email}
                             onChange={handleEmailChange}
+                            onKeyPress={(e) => handleKeyPress(e, "email")}
                             placeholder="Enter your registered email"
                             className={`w-full px-2 py-1 border focus:ring-2 text-sm focus:ring-black-400 focus:border-transparent pr-8 transition-colors ${
                               error && error.includes("email") ? 'border-red-500' : 'border-gray-300'
@@ -330,7 +359,7 @@ const ForgotPassword = () => {
                       <button
                         onClick={handleEmailSubmit}
                         disabled={isLoading}
-                        className="flex items-center justify-center w-full px-4 py-2 space-x-2 text-sm font-semibold text-white transition-all duration-200 bg-gray-800 rounded-sm hover:bg-gray-900 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95"
+                        className="flex items-center justify-center w-full px-4 py-2 space-x-2 text-sm font-semibold text-white transition-all duration-200 bg-green-600 rounded-sm hover:bg-green-900 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95"
                       >
                         {isLoading ? (
                           <Loader2 className="w-5 h-5 animate-spin" />
@@ -360,6 +389,7 @@ const ForgotPassword = () => {
                             maxLength={6}
                             value={otp}
                             onChange={handleOtpChange}
+                            onKeyPress={(e) => handleKeyPress(e, "otp")}
                             className={`w-full px-2 py-1 border focus:ring-2 text-sm focus:ring-black-400 focus:border-transparent pr-8 transition-colors ${
                               error && error.includes("OTP") ? 'border-red-500' : 'border-gray-300'
                             }`}
@@ -377,7 +407,7 @@ const ForgotPassword = () => {
                       <button
                         onClick={handleOtpSubmit}
                         disabled={isLoading}
-                        className="flex items-center justify-center w-full px-4 py-2 space-x-2 text-sm font-semibold text-white transition-all duration-200 bg-gray-800 rounded-sm hover:bg-gray-900 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95"
+                        className="flex items-center justify-center w-full px-4 py-2 space-x-2 text-sm font-semibold text-white transition-all duration-200 bg-green-600 rounded-sm hover:bg-green-900 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95"
                       >
                         {isLoading ? (
                           <Loader2 className="w-5 h-5 animate-spin" />
@@ -419,6 +449,7 @@ const ForgotPassword = () => {
                             type={showNewPassword ? "text" : "password"}
                             value={newPassword}
                             onChange={handleNewPasswordChange}
+                            onKeyPress={(e) => handleKeyPress(e, "newPassword")}
                             className={`w-full px-2 py-1 border text-sm focus:ring-2 focus:ring-black-400 focus:border-transparent pr-10 transition-colors ${
                               passwordErrors.length > 0 ? 'border-red-500' : 'border-gray-300'
                             }`}
@@ -452,6 +483,7 @@ const ForgotPassword = () => {
                             type={showConfirmPassword ? "text" : "password"}
                             value={confirmPassword}
                             onChange={handleConfirmPasswordChange}
+                            onKeyPress={(e) => handleKeyPress(e, "confirmPassword")}
                             className={`w-full px-2 py-1 border text-sm focus:ring-2 focus:ring-black-400 focus:border-transparent pr-10 transition-colors ${
                               error && error.includes("match") ? 'border-red-500' : 'border-gray-300'
                             }`}
@@ -471,7 +503,7 @@ const ForgotPassword = () => {
                       <button
                         onClick={handlePasswordReset}
                         disabled={isLoading}
-                        className="flex items-center justify-center w-full px-4 py-2 space-x-2 text-sm font-semibold text-white transition-all duration-200 bg-gray-800 rounded-sm hover:bg-gray-900 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95"
+                        className="flex items-center justify-center w-full px-4 py-2 space-x-2 text-sm font-semibold text-white transition-all duration-200 bg-green-600 rounded-sm hover:bg-green-900 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95"
                       >
                         {isLoading ? (
                           <Loader2 className="w-5 h-5 animate-spin" />
@@ -534,6 +566,7 @@ const ForgotPassword = () => {
           </div>
         </div>
       </div>
+    </div>
     </div>
   );
 };

@@ -71,7 +71,7 @@ const Sidebar = ({
       id: "profile",
       title: "Profile",
       icon: <User size={20} />,
-      route: "/Profile"
+      route: "/ProfilePage"
     },
     {
       id: "organization",
@@ -96,7 +96,7 @@ const Sidebar = ({
       isDisabled
         ? "opacity-50 cursor-not-allowed text-slate-400"
         : isActive
-        ? "bg-green-600 text-white"
+        ? "border-solid border-2 border-green-800 text-white"
         : "text-slate-300 hover:bg-slate-700 hover:text-white"
     }`;
 
@@ -124,7 +124,7 @@ const Sidebar = ({
           {section.icon}
           <span className="flex-grow font-medium text-left">{section.title}</span>
           {isActive && (
-            <span className="w-2 h-2 bg-white rounded-full"></span>
+            <span className="w-2 h-2 bg-green-800 rounded-full"></span>
           )}
         </button>
       </div>

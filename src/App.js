@@ -4,10 +4,11 @@ import Sidebar from './components/Common/Sidebar';
 import Dashboard from './components/Dashboard/Dashboard';
 import GateCheck from './components/GateCheck/GateCheck';
 import Organization from './components/Organization/Organization';
-import AddUserModal from './components/Users/AddUserModal';
 import Navbar from './components/Common/Navbar';
 import LoginForm from './components/LoginForm/LoginForm';
 import ForgotPassword from './components/LoginForm/ForgotPassword';
+import ProfilePage from './components/ProfilePage/ProfilePage';
+import UserManagement from './components/Users/UserManagement';
 
 // Configuration for demo/production mode
 const DEMO_MODE = true; // Set to false to enable full authentication
@@ -156,7 +157,7 @@ function App() {
           path="/forgot-password"
           element={
             <PublicRoute isAuthenticated={isAuthenticated}>
-              <div className="min-h-screen bg-cover bg-gradient-to-br from-green-100 to-yellow-50">
+              <div className="min-h-screen bg-white bg-cover">
                 <div className="flex items-center justify-center min-h-screen p-2 sm:p-4">
                   <div className="relative w-full max-w-3xl mx-auto overflow-hidden">
                     <div className="relative bg-white rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden min-h-[400px] sm:min-h-[500px]">
@@ -210,6 +211,14 @@ function App() {
                         } 
                       />
                       <Route 
+                        path="/profile" 
+                        element={
+                          <ProfilePage 
+                            userProfile={userProfile}
+                          />
+                        } 
+                      />
+                      <Route 
                         path="/organization" 
                         element={
                           <Organization 
@@ -221,14 +230,15 @@ function App() {
                       />
                       <Route 
                         path="/user" 
-                        element={<AddUserModal userProfile={userProfile} />} 
+                        element={<UserManagement />} 
                       />
                       
                       {/* Case-insensitive route aliases */}
                       <Route path="/Dashboard" element={<Navigate to="/dashboard" replace />} />
                       <Route path="/GateCheck" element={<Navigate to="/gatecheck" replace />} />
+                      <Route path="/ProfilePage" element={<Navigate to="/profile" replace />} />
                       <Route path="/Organization" element={<Navigate to="/organization" replace />} />
-                      <Route path="/User" element={<Navigate to="/user" replace />} />
+                      <Route path="/UserManagement" element={<Navigate to="/user" replace />} />
                       
                       {/* Fallback route */}
                       <Route path="*" element={<Navigate to="/dashboard" replace />} />

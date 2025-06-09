@@ -1,8 +1,20 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Menu, Bell, Search, User, LogOut, Settings, ChevronDown } from 'lucide-react';
 
 const Navbar = ({ user, onSidebarToggle, onLogout }) => {
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const navigate = useNavigate();
+
+  const handleProfileClick = () => {
+    setShowUserMenu(false);
+    navigate('/profile');
+  };
+
+  const handleLogoutClick = () => {
+    setShowUserMenu(false);
+    onLogout();
+  };
 
   return (
     <nav className="px-4 py-2 bg-white border-b border-gray-200 shadow-sm">
@@ -65,7 +77,10 @@ const Navbar = ({ user, onSidebarToggle, onLogout }) => {
                   <p className="text-sm text-gray-500">{user?.email || 'user@example.com'}</p>
                 </div>
                 
-                <button className="flex items-center w-full px-2 py-1 space-x-1 text-sm text-gray-700 transition-colors hover:bg-gray-100">
+                <button 
+                  onClick={handleProfileClick}
+                  className="flex items-center w-full px-2 py-1 space-x-1 text-sm text-gray-700 transition-colors hover:bg-gray-100"
+                >
                   <User className="w-4 h-4" />
                   <span>Profile</span>
                 </button>
@@ -78,11 +93,8 @@ const Navbar = ({ user, onSidebarToggle, onLogout }) => {
                 <hr className="my-0" />
                 
                 <button
-                  onClick={() => {
-                    setShowUserMenu(false);
-                    onLogout();
-                  }}
-                  className="flex items-center w-full px-2 py-1 space-x-1 text-sm text-green-600 transition-colrs hover:bg-green-20"
+                  onClick={handleLogoutClick}
+                  className="flex items-center w-full px-2 py-1 space-x-1 text-sm text-green-600 transition-colors hover:bg-green-50"
                 >
                   <LogOut className="w-4 h-3" />
                   <span>Sign out</span>

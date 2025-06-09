@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Eye, EyeOff, RefreshCw, User, Loader2, ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
 // import bg_img from '../asset/bg_img.jpg'; // Assuming you have a background image
- // Assuming you have a background image
 
 const LoginForm = ({ onLogin, demoMode = true }) => { // Changed from onLoginSuccess to onLogin
   const [currentStep, setCurrentStep] = useState(1);
@@ -75,6 +74,7 @@ const LoginForm = ({ onLogin, demoMode = true }) => { // Changed from onLoginSuc
         if (endpoint === '/api/validate-user' && data.userIdAlias) {
           resolve({ data: { success: true, message: 'User validated' } });
         } else if (endpoint === '/api/login' && data.password && data.captcha) {
+          // Fixed captcha validation - case insensitive comparison
           if (data.captcha === captchaValue) {
             resolve({ 
               data: { 
@@ -136,10 +136,11 @@ const LoginForm = ({ onLogin, demoMode = true }) => { // Changed from onLoginSuc
     
     if (!captcha.trim()) {
       newErrors.captcha = 'Please enter the captcha';
-    } else if (captcha.toUpperCase() !== captchaValue.toUpperCase()) {
+    } else if (captcha.toLowerCase() !== captchaValue.toLowerCase()) {
+      // Fixed captcha validation - case insensitive
       newErrors.captcha = 'Captcha does not match';
     }
-      
+
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       return;
@@ -188,7 +189,7 @@ const LoginForm = ({ onLogin, demoMode = true }) => { // Changed from onLoginSuc
   };
 
   return (
-    <div className="min-h-screen bg-center bg-cover bg-gradient-to-br from-green-100 to-yellow-50 no-repeatbg"
+    <div className="min-h-screen bg-white bg-center bg-cover no-repeatbg"
     // style ={{ backgroundImage: `url(${bg_img})` }}
     >
       <div className="flex items-center justify-center min-h-screen p-2 sm:p-4">
@@ -202,19 +203,19 @@ const LoginForm = ({ onLogin, demoMode = true }) => { // Changed from onLoginSuc
             <div className="absolute w-10 h-10 bg-gray-300 rounded-full top-1/3 left-1/3 sm:w-20 sm:h-20 opacity-20 animate-ping"></div>
           </div>
 
-          <div className="relative bg-white rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden min-h-[400px] sm:min-h-[500px] flex flex-col lg:flex-row">
+          <div className="relative bg-white shadow-2xl overflow-hidden min-h-[400px] sm:min-h-[500px] flex flex-col lg:flex-row">
             
             {/* Right Panel - Login Forms */}
-            <div className={`${isMobile ? 'order-1' : 'order-2'} flex-1 relative bg-gradient-to-br from-green-600 to-yellow-100`}>
+            <div className={`${isMobile ? 'order-1' : 'order-2'} flex-1 relative bg-gradient-white`}>
               
               {/* Step 1 - Initial Login */}
               <div className={`absolute inset-0 p-4 sm:p-8 lg:p-12 flex flex-col justify-center transition-transform duration-500 ease-in-out ${
                 currentStep === 1 ? 'translate-x-0' : '-translate-x-full'
               }`}>
-                <div className="w-full max-w-sm p-4 mx-auto bg-white shadow-xl rounded-xl sm:p-8">
+                <div className="w-full max-w-sm p-4 mx-auto bg-white border-2 border-green-800 border-solid shadow-xl rounded-xl sm:p-8">
                   
                   <div className="mb-4 text-center sm:mb-8">
-                    <h1 className="mb-2 text-base font-bold tracking-wider text-green-800 sm:text-lg sm:mb-4">SMART CHECK</h1>
+                    <h1 className="mb-2 text-base font-bold tracking-wider text-green-600 sm:text-lg sm:mb-4">SMART CHECK</h1>
                     <h2 className="text-xl font-bold text-gray-800 sm:text-xl">Sign In</h2>
                   </div>
 
@@ -249,7 +250,7 @@ const LoginForm = ({ onLogin, demoMode = true }) => { // Changed from onLoginSuc
                     <button
                       onClick={handleFirstSignIn}
                       disabled={loading}
-                      className="flex items-center justify-center w-full px-4 py-2 space-x-2 text-sm font-semibold text-white transition-all duration-200 bg-gray-800 rounded-sm hover:bg-gray-900 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95"
+                      className="flex items-center justify-center w-full px-4 py-2 space-x-2 text-sm font-semibold text-white transition-all duration-200 bg-green-600 rounded-sm hover:bg-green-900 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95"
                     >
                       {loading ? (
                         <Loader2 className="w-5 h-5 animate-spin" />
@@ -269,7 +270,7 @@ const LoginForm = ({ onLogin, demoMode = true }) => { // Changed from onLoginSuc
               <div className={`absolute inset-0 p-2 sm:p-6 lg:p-10 flex flex-col justify-center transition-transform duration-500 ease-in-out ${
                 currentStep === 2 ? 'translate-x-0' : 'translate-x-full'
               }`}>
-                <div className="w-full max-w-sm p-2 mx-auto bg-white shadow-xl rounded-xl sm:p-6">
+                <div className="w-full max-w-sm p-2 mx-auto bg-white border-2 border-green-600 border-solid shadow-xl rounded-xl sm:p-6">
                   {/* Organization Header */}
                   <div className="mb-6 text-center sm:mb-8">
                     <div className="flex justify-center m-2">
@@ -363,7 +364,7 @@ const LoginForm = ({ onLogin, demoMode = true }) => { // Changed from onLoginSuc
                     <button
                       onClick={handleFinalSignIn}
                       disabled={loading}
-                      className="flex items-center justify-center w-full px-4 py-1 space-x-1 text-sm font-medium text-white transition-all duration-200 bg-gray-800 rounded-sm hover:bg-gray-900 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95"
+                      className="flex items-center justify-center w-full px-4 py-1 space-x-1 text-sm font-medium text-white transition-all duration-200 bg-green-600 roundedsm hover:bg-green-900 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95"
                     >
                       {loading ? (
                         <Loader2 className="w-5 h-5 animate-spin" />
@@ -376,15 +377,11 @@ const LoginForm = ({ onLogin, demoMode = true }) => { // Changed from onLoginSuc
                       )}
                     </button>
 
-                    <div className="pl-10 text-center">
-                      {/* <button 
-                      href="/forgot-password"
-                      className="text-sm text-gray-600 transition-colors hover:text-gray-800 hover:underline"
-                      >
-                        Forgot password?
-                      </button> */}
-                      <Link to="/forgot-password">Forgot Password?</Link>
-                    </div>
+                    <div className="text-center ">
+                      <Link to="/forgot-password" className="text-sm text-gray-600 transition-colors hover:text-gray-800 hover:underline">
+                        Forgot Password?
+                      </Link>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -393,7 +390,7 @@ const LoginForm = ({ onLogin, demoMode = true }) => { // Changed from onLoginSuc
               {currentStep === 2 && (
                 <button
                   onClick={handleBackToStep1}
-                  className="absolute p-2 text-white transition-all duration-200 rounded-sm top-4 left-4 bg-white/20 hover:bg-white/30 hover:scale-110 active:scale-95"
+                  className="absolute p-2 text-green-900 transition-all duration-200 rounded-sm top-4 left-4 bg-white/20 hover:bg-white/30 hover:scale-110 active:scale-95"
                   title="Go Back"
                 >
                   <ArrowLeft className="w-5 h-5" />
