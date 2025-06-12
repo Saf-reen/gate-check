@@ -128,7 +128,7 @@ const Organization = ({ userProfile, user, onLogout }) => {
   return (
     <div className="flex min-h-screen bg-gray-50">
       <div className="w-full min-h-screen lg:ml-0">
-        <main className="p-6">
+        <main className="p-0">
           <div className="space-y-6">
             {/* Header */}
             <div className="flex items-center justify-between">
@@ -156,8 +156,8 @@ const Organization = ({ userProfile, user, onLogout }) => {
                   type="text"
                   value={searchQuery}
                   onChange={handleSearchChange}
-                  placeholder="Search organizations by name..."
-                  className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white shadow-sm"
+                  placeholder="Search Organizations.."
+                  className="w-100 pl-8 text-sm h-10 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white shadow-sm"
                 />
                 {searchQuery && (
                   <button

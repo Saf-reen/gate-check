@@ -363,7 +363,7 @@ const GateCheck = ({ onVisitorCountChange }) => {
             placeholder={`Search ${showRecurring ? 'recurring ' : ''}visitors...`}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full py-2 pl-10 pr-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus:border-transparent"
+            className="w-100 pl-8 text-sm h-10 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus:border-transparent"
           />
         </div>
       </div>

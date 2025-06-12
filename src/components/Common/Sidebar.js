@@ -132,7 +132,7 @@ const Sidebar = ({
   };
 
   return (
-    <aside className={`w-50 h-fill bg-slate-800 text-white flex flex-col shadow-lg ${className}`}>
+    <aside style={{width:"220px"}} className={`h-fill bg-slate-800 text-white flex flex-col shadow-lg ${className}`}>
       {/* Header */}
       <div className="flex justify-center p-4 text-center border-b border-slate-700">
         <div className="space-x-3">

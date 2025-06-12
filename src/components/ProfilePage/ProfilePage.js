@@ -288,8 +288,8 @@ const Profile = ({ user, onLogout, onProfileUpdate }) => {
     <div className="min-h-screen m-0 bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b border-gray-200">
-        <div className="flex items-center p-6">
-          <User className="w-8 h-8 mr-3 text-green-600" />
+        <div className="flex items-center p-2">
+          <User className="w-8 h-8 m-0 text-green-600" />
           <h1 className="text-2xl font-semibold text-gray-800">Profile</h1>
         </div>
       </div>

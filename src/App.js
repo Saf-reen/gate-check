@@ -9,6 +9,7 @@ import LoginForm from './components/LoginForm/LoginForm';
 import ForgotPassword from './components/LoginForm/ForgotPassword';
 import ProfilePage from './components/ProfilePage/ProfilePage';
 import UserManagement from './components/Users/UserManagement';
+import Reports from './components/Reports/Reports'
 
 // Configuration for demo/production mode
 const DEMO_MODE = true; // Set to false to enable full authentication
@@ -211,6 +212,14 @@ function App() {
                         } 
                       />
                       <Route 
+                        path="/reports" 
+                        element={
+                          <Reports
+                            userProfile={userProfile}
+                          />
+                        } 
+                      />
+                      <Route 
                         path="/profile" 
                         element={
                           <ProfilePage 
@@ -236,6 +245,7 @@ function App() {
                       {/* Case-insensitive route aliases */}
                       <Route path="/Dashboard" element={<Navigate to="/dashboard" replace />} />
                       <Route path="/GateCheck" element={<Navigate to="/gatecheck" replace />} />
+                      <Route path="/Reports" element={<Navigate to="/reports" replace />} />
                       <Route path="/ProfilePage" element={<Navigate to="/profile" replace />} />
                       <Route path="/Organization" element={<Navigate to="/organization" replace />} />
                       <Route path="/UserManagement" element={<Navigate to="/user" replace />} />
