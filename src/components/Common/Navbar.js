@@ -64,7 +64,7 @@ const Navbar = ({ user, onSidebarToggle, onLogout }) => {
               </div>
               <div className="hidden text-left md:block">
                 <p className="text-sm font-medium text-gray-900">{user?.name || 'User'}</p>
-                <p className="text-sm text-gray-500">{user?.role || 'Member'}</p>
+                {/* <p className="text-sm text-gray-500">{user?.role || 'Member'}</p> */}
               </div>
               <ChevronDown className="w-5 h-5 text-gray-400" />
             </button>

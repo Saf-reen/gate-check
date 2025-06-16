@@ -53,7 +53,7 @@ function App() {
       }
 
       // Accept any email/password combination for demo
-      if (!userData || !userData.email || !userData.password) {
+      if (!userData || !userData.email ) {
         throw new Error('Please enter both email and password');
       }
 
@@ -61,7 +61,7 @@ function App() {
       const demoUserProfile = {
         id: 1,
         name: userData.name || userData.email.split('@')[0],
-        role: 'admin',
+        // role: userData.role || 'Visitor',
         email: userData.email,
         organization: 'Demo Organization'
       };
@@ -224,6 +224,7 @@ function App() {
                         element={
                           <ProfilePage 
                             userProfile={userProfile}
+                                 onLogout={handleLogout}
                           />
                         } 
                       />

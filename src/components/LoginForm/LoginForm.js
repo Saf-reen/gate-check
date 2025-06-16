@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Eye, EyeOff, RefreshCw, User, Loader2, ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
-// import bg_img from '../asset/bg_img.jpg'; // Assuming you have a background image
+import authService from '../Auth/AuthService';
+import { api, setupAxiosInterceptors } from '../Auth/api';
+// import bg_img from '../asset/bg_img.jpg';
 
-const LoginForm = ({ onLogin, demoMode = true }) => { // Changed from onLoginSuccess to onLogin
+const LoginForm = ({ onLogin }) => {
   const [currentStep, setCurrentStep] = useState(1);
   const [showPassword, setShowPassword] = useState(false);
   const [userIdAlias, setUserIdAlias] = useState('');
@@ -35,8 +37,9 @@ const LoginForm = ({ onLogin, demoMode = true }) => { // Changed from onLoginSuc
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Generate captcha on component mount and refresh
+  // Setup axios interceptors and generate captcha on component mount
   useEffect(() => {
+    setupAxiosInterceptors(authService);
     generateCaptcha();
   }, [generateCaptcha]);
 
@@ -66,39 +69,6 @@ const LoginForm = ({ onLogin, demoMode = true }) => { // Changed from onLoginSuc
     }
   };
 
-  // Simulate API call with axios-like structure
-  const apiCall = async (endpoint, data) => {
-    // Simulating axios API call
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        if (endpoint === '/api/validate-user' && data.userIdAlias) {
-          resolve({ data: { success: true, message: 'User validated' } });
-        } else if (endpoint === '/api/login' && data.password && data.captcha) {
-          // Fixed captcha validation - case insensitive comparison
-          if (data.captcha === captchaValue) {
-            resolve({ 
-              data: { 
-                success: true, 
-                message: 'Login successful',
-                token: 'mock-jwt-token',
-                user: { 
-                  id: 1, 
-                  name: data.userIdAlias, 
-                  email: data.userIdAlias + '@example.com', // Add email for App.js compatibility
-                  role: 'admin' 
-                }
-              } 
-            });
-          } else {
-            reject({ response: { data: { error: 'Invalid captcha' } } });
-          }
-        } else {
-          reject({ response: { data: { error: 'Invalid credentials' } } });
-        }
-      }, 1500);
-    });
-  };
-
   const handleFirstSignIn = async () => {
     if (!userIdAlias.trim()) {
       setErrors({ userIdAlias: 'Please enter UserID or Alias Name' });
@@ -109,19 +79,28 @@ const LoginForm = ({ onLogin, demoMode = true }) => { // Changed from onLoginSuc
     setErrors({});
 
     try {
-      const response = await apiCall('/api/validate-user', { userIdAlias });
-      if (response.data.success) {
-        setCurrentStep(2);
-        // Focus on password field after transition
-        setTimeout(() => {
-          const passwordInput = document.querySelector('input[type="password"], input[type="text"][placeholder="Enter Password"]');
-          if (passwordInput) {
-            passwordInput.focus();
-          }
-        }, 600); // Wait for transition to complete
-      }
+      // Optional: Validate user existence if your backend has this endpoint
+      // Most backends validate during actual login, so we'll skip this step
+      // and proceed directly to step 2
+      
+      setCurrentStep(2);
+      // Focus on password field after transition
+      setTimeout(() => {
+        const passwordInput = document.querySelector('input[type="password"], input[type="text"][placeholder="Enter Password"]');
+        if (passwordInput) {
+          passwordInput.focus();
+        }
+      }, 600);
     } catch (error) {
-      setErrors({ userIdAlias: 'User not found. Please check your credentials.' });
+      console.error('Step 1 validation error:', error);
+      // If validation fails, still proceed to step 2 for better UX
+      setCurrentStep(2);
+      setTimeout(() => {
+        const passwordInput = document.querySelector('input[type="password"], input[type="text"][placeholder="Enter Password"]');
+        if (passwordInput) {
+          passwordInput.focus();
+        }
+      }, 600);
     } finally {
       setLoading(false);
     }
@@ -136,8 +115,7 @@ const LoginForm = ({ onLogin, demoMode = true }) => { // Changed from onLoginSuc
     
     if (!captcha.trim()) {
       newErrors.captcha = 'Please enter the captcha';
-    } else if (captcha.toLowerCase() !== captchaValue.toLowerCase()) {
-      // Fixed captcha validation - case insensitive
+    } else if (captcha !== captchaValue) {
       newErrors.captcha = 'Captcha does not match';
     }
 
@@ -150,27 +128,105 @@ const LoginForm = ({ onLogin, demoMode = true }) => { // Changed from onLoginSuc
     setErrors({});
 
     try {
-      const response = await apiCall('/api/login', {
-        userIdAlias,
-        password,
-        captcha
-      });
-      
-      if (response.data.success) {
-        // Prepare user data for App.js handleLogin function
+      // Prepare credentials for API call
+      const credentials = {
+        identifier: userIdAlias, // Adjust field name based on your backend expectations
+        password: password
+        // Note: captcha is validated on frontend only, not sent to backend
+      };
+      console.log(credentials);
+
+      // Make login request using the API service
+      const response = await api.auth.login(credentials);
+      if (response.data) {
+        // Extract data from API response
+        const { 
+          token, 
+          access_token, 
+          refresh_token: refreshToken, 
+          user,
+          data: responseData 
+        } = response.data;
+        
+        // Handle different token formats
+        const authToken = token || access_token;
+        
+        // Store tokens in localStorage
+        if (authToken) {
+          localStorage.setItem('authToken', authToken);
+          // Token will be automatically added to future requests by axios interceptor
+        }
+        if (refreshToken) {
+          localStorage.setItem('refreshToken', refreshToken);
+        }
+        
+        // Prepare user data for parent component
         const userData = {
-          email: response.data.user.email,
-          password: password, // Include password for App.js validation
-          name: response.data.user.name
+          id: user?.id || responseData?.user?.id,
+          email: user?.email || responseData?.user?.email || userIdAlias,
+          name: user?.name || responseData?.user?.name || user?.username,
+          role: user?.role || responseData?.user?.role,
+          // Add any other user properties your app needs
+          ...(user || responseData?.user || {})
         };
         
-        // Call onLogin with the expected parameters: (userData, token, captchaValue)
-        await onLogin(userData, response.data.token, captcha);
+        // Set user data in authService if it exists
+        if (authService) {
+          if (authService.setUser) {
+            authService.setUser(userData);
+          }
+          if (authService.setToken) {
+            authService.setToken(authToken);
+          }
+        }
+        
+        // Call parent onLogin callback
+        if (onLogin) {
+          await onLogin(userData, authToken, captcha);
+        }
+        
+        console.log('Login successful:', response.data);
       }
     } catch (error) {
-      const errorMessage = error.response?.data?.error || 'Login failed. Please try again.';
-      setErrors({ general: errorMessage });
-      generateCaptcha(); // Refresh captcha on error
+      console.error('Login error:', error);
+      
+      // Handle different types of errors
+      let errorMessage = 'Login failed. Please try again.';
+      
+      // Check for axios error response
+      if (error.response?.data?.detail) {
+        errorMessage = error.response.data.detail;
+      } else if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error.response?.data?.errors) {
+        // Handle validation errors object
+        const errors = error.response.data.errors;
+        if (typeof errors === 'object') {
+          // Get first error message
+          const firstError = Object.values(errors)[0];
+          errorMessage = Array.isArray(firstError) ? firstError[0] : firstError;
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      // Handle specific error types
+      if (errorMessage.toLowerCase().includes('captcha')) {
+        setErrors({ captcha: errorMessage });
+      } else if (errorMessage.toLowerCase().includes('password')) {
+        setErrors({ password: errorMessage });
+      } else if (errorMessage.toLowerCase().includes('user') || 
+                 errorMessage.toLowerCase().includes('email') || 
+                 errorMessage.toLowerCase().includes('username')) {
+        setErrors({ userIdAlias: errorMessage });
+      } else if (errorMessage.toLowerCase().includes('credential')) {
+        setErrors({ general: errorMessage });
+      } else {
+        setErrors({ general: errorMessage });
+      }
+      
+      // Refresh captcha on error
+      generateCaptcha();
       setCaptcha('');
     } finally {
       setLoading(false);
@@ -222,7 +278,7 @@ const LoginForm = ({ onLogin, demoMode = true }) => { // Changed from onLoginSuc
                   <div className="space-y-2 sm:space-y-4">
                     <div>
                       <label className="block mb-2 text-sm font-medium text-gray-700">
-                        UserID / AliasName
+                        UserID / AliasName / Email
                       </label>
                       <div className="relative">
                         <input
@@ -233,7 +289,7 @@ const LoginForm = ({ onLogin, demoMode = true }) => { // Changed from onLoginSuc
                             setErrors(prev => ({ ...prev, userIdAlias: '' }));
                           }}
                           onKeyDown={handleStep1KeyDown}
-                          placeholder="Enter userid / aliasname"
+                          placeholder="Enter userid / aliasname / email"
                           className={`w-full px-2 py-1 border focus:ring-2 text-sm focus:ring-black-400 focus:border-transparent pr-8 transition-colors ${
                             errors.userIdAlias ? 'border-red-500' : 'border-gray-300'
                           }`}
@@ -257,7 +313,7 @@ const LoginForm = ({ onLogin, demoMode = true }) => { // Changed from onLoginSuc
                       ) : (
                         <>
                           <User className="w-4 h-4" />
-                          <span>Sign In</span>
+                          <span>Continue</span>
                           <span className="ml-2">→</span>
                         </>
                       )}
@@ -279,6 +335,7 @@ const LoginForm = ({ onLogin, demoMode = true }) => { // Changed from onLoginSuc
                       </div>
                     </div>
                     <h2 className="font-semibold text-gray-800 text-md sm:text-md">SRIA</h2>
+                    <p className="mt-1 text-xs text-gray-600">Welcome, {userIdAlias}</p>
                   </div>
 
                   <div className="space-y-2 sm:space-y-4">
@@ -356,28 +413,29 @@ const LoginForm = ({ onLogin, demoMode = true }) => { // Changed from onLoginSuc
                       </button>
                     </div>
 
-                  {errors.general && (
-                    <div className="p-1 text-sm text-center text-red-700 mb-w">
-                      {errors.general}
-                    </div>
-                  )}
+                    {errors.general && (
+                      <div className="p-2 text-sm text-center text-red-700 rounded">
+                        {errors.general}
+                      </div>
+                    )}
+
                     <button
                       onClick={handleFinalSignIn}
                       disabled={loading}
-                      className="flex items-center justify-center w-full px-4 py-1 space-x-1 text-sm font-medium text-white transition-all duration-200 bg-green-600 roundedsm hover:bg-green-900 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95"
+                      className="flex items-center justify-center w-full px-4 py-2 space-x-2 text-sm font-medium text-white transition-all duration-200 bg-green-600 rounded-sm hover:bg-green-900 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95"
                     >
                       {loading ? (
                         <Loader2 className="w-5 h-5 animate-spin" />
                       ) : (
                         <>
-                          <User className="w-6 h-6" />
+                          <User className="w-4 h-4" />
                           <span>Sign In</span>
                           <span className="ml-2">→</span>
                         </>
                       )}
                     </button>
 
-                    <div className="text-center ">
+                    <div className="text-center">
                       <Link to="/forgot-password" className="text-sm text-gray-600 transition-colors hover:text-gray-800 hover:underline">
                         Forgot Password?
                       </Link>

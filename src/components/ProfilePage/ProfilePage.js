@@ -235,20 +235,9 @@ const Profile = ({ user, onLogout, onProfileUpdate }) => {
     }
   };
 
-  const handleLogout = () => {
-    // Check if onLogout is provided and is a function
-    if (typeof onLogout === 'function') {
-      onLogout();
-    } else {
-      // Fallback: Clear any stored user data and navigate to login
-      console.warn('onLogout function not provided to Profile component');
-      // If you're using localStorage for user data, clear it here
-      // localStorage.removeItem('user');
-      // localStorage.removeItem('authToken');
-    }
-    
-    // Always navigate to login page
-    navigate('/login');
+ const handleLogoutClick = () => {
+
+    onLogout();
   };
 
   // Update form data when user prop changes
@@ -614,7 +603,7 @@ const Profile = ({ user, onLogout, onProfileUpdate }) => {
                 {/* Logout Button */}
                 <div className="pt-6 mt-6 border-t border-gray-200">
                   <button
-                    onClick={handleLogout}
+               onClick={handleLogoutClick}
                     className="flex items-center justify-center px-4 py-3 text-white transition-colors bg-green-600 rounded-lg w-100 hover:bg-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
                   >
                     <LogOut className="w-5 h-5 mr-2" />

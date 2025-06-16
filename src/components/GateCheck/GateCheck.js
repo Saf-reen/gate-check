@@ -360,10 +360,10 @@ const GateCheck = ({ onVisitorCountChange }) => {
           <Search className="absolute w-5 h-5 text-gray-400 transform -translate-y-1/2 left-3 top-1/2" />
           <input
             type="text"
-            placeholder={`Search ${showRecurring ? 'recurring ' : ''}visitors...`}
+            placeholder={`Search ${showRecurring ? 'recurring ' : ''}Visitors...`}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-100 pl-8 text-sm h-10 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus:border-transparent"
+            className="h-10 p-2 pl-8 text-sm border border-gray-300 rounded-lg w-100 focus:ring-2 focus:ring-green-600 focus:border-transparent"
           />
         </div>
       </div>
