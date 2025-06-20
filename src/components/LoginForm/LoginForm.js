@@ -69,42 +69,87 @@ const LoginForm = ({ onLogin }) => {
     }
   };
 
-  const handleFirstSignIn = async () => {
-    if (!userIdAlias.trim()) {
-      setErrors({ userIdAlias: 'Please enter UserID or Alias Name' });
-      return;
+  // Validate user input (email format, length, etc.)
+  const validateUserInput = (input) => {
+    const trimmedInput = input.trim();
+    
+    // Check if empty
+    if (!trimmedInput) {
+      return { isValid: false, error: 'Please enter UserID, Alias Name, or Email' };
     }
 
-    setLoading(true);
-    setErrors({});
-
-    try {
-      // Optional: Validate user existence if your backend has this endpoint
-      // Most backends validate during actual login, so we'll skip this step
-      // and proceed directly to step 2
-      
-      setCurrentStep(2);
-      // Focus on password field after transition
-      setTimeout(() => {
-        const passwordInput = document.querySelector('input[type="password"], input[type="text"][placeholder="Enter Password"]');
-        if (passwordInput) {
-          passwordInput.focus();
-        }
-      }, 600);
-    } catch (error) {
-      console.error('Step 1 validation error:', error);
-      // If validation fails, still proceed to step 2 for better UX
-      setCurrentStep(2);
-      setTimeout(() => {
-        const passwordInput = document.querySelector('input[type="password"], input[type="text"][placeholder="Enter Password"]');
-        if (passwordInput) {
-          passwordInput.focus();
-        }
-      }, 600);
-    } finally {
-      setLoading(false);
+    // Check minimum length
+    if (trimmedInput.length < 3) {
+      return { isValid: false, error: 'Input must be at least 3 characters long' };
     }
+
+    // If it contains @ symbol, validate as email
+    if (trimmedInput.includes('@')) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(trimmedInput)) {
+        return { isValid: false, error: 'Please enter a valid email address' };
+      }
+    }
+
+    // Check for invalid characters (basic validation)
+    const validChars = /^[a-zA-Z0-9@._-]+$/;
+    if (!validChars.test(trimmedInput)) {
+      return { isValid: false, error: 'Only letters, numbers, @, ., _, and - are allowed' };
+    }
+
+    return { isValid: true, error: null };
   };
+
+const handleFirstSignIn = async () => {
+  const validation = validateUserInput(userIdAlias);
+  if (!validation.isValid) {
+    setErrors({ userIdAlias: validation.error });
+    return;
+  }
+
+  setLoading(true);
+  setErrors({});
+
+  const checkUserPayload = {
+    identifier: userIdAlias.trim(),
+  };
+
+  try {
+    const response = await api.auth.validateUser(checkUserPayload);
+    console.log("User validation response:", response.data);
+
+    // ✅ If the API responds with 200 OK, user exists
+    setCurrentStep(2);
+    setTimeout(() => {
+      const passwordInput = document.querySelector(
+        'input[type="password"], input[placeholder="Enter Password"]'
+      );
+      if (passwordInput) passwordInput.focus();
+    }, 600);
+  } catch (error) {
+    console.error("User validation error:", error);
+
+    const errorMessage =
+      error.response?.data?.error ||
+      error.response?.data?.message ||
+      error.message ||
+      "User validation failed";
+
+    if (
+      errorMessage.toLowerCase().includes("user not found") ||
+      errorMessage.toLowerCase().includes("invalid user") ||
+      error.response?.status === 404
+    ) {
+      setErrors({
+        userIdAlias: "User not found. Please check your UserID, Alias, or Email.",
+      });
+    } else {
+      setErrors({ userIdAlias: errorMessage });
+    }
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleFinalSignIn = async () => {
     const newErrors = {};
@@ -139,26 +184,34 @@ const LoginForm = ({ onLogin }) => {
       // Make login request using the API service
       const response = await api.auth.login(credentials);
       if (response.data) {
+
+
+ 
         // Extract data from API response
         const { 
-          token, 
-          access_token, 
-          refresh_token: refreshToken, 
-          user,
+         access:access,
+         refresh:refresh,
+         user,
           data: responseData 
         } = response.data;
+
+
         
-        // Handle different token formats
-        const authToken = token || access_token;
+        const authToken = access || responseData?.access || '';
+        const refreshToken = refresh || responseData?.refresh || '';
+
+        if(authToken) { 
+
+          localStorage.setItem('authToken', authToken);
+          localStorage.setItem('refreshToken', refreshToken || '');
+          console.log('Tokens stored in localStorage:', {
+            authToken})
+        };
+
         
         // Store tokens in localStorage
-        if (authToken) {
-          localStorage.setItem('authToken', authToken);
-          // Token will be automatically added to future requests by axios interceptor
-        }
-        if (refreshToken) {
-          localStorage.setItem('refreshToken', refreshToken);
-        }
+    
+      
         
         // Prepare user data for parent component
         const userData = {
@@ -194,10 +247,10 @@ const LoginForm = ({ onLogin }) => {
       let errorMessage = 'Login failed. Please try again.';
       
       // Check for axios error response
-      if (error.response?.data?.detail) {
-        errorMessage = error.response.data.detail;
-      } else if (error.response?.data?.error) {
+      if (error.response?.data?.error) {
         errorMessage = error.response.data.error;
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
       } else if (error.response?.data?.errors) {
         // Handle validation errors object
         const errors = error.response.data.errors;
@@ -217,8 +270,11 @@ const LoginForm = ({ onLogin }) => {
         setErrors({ password: errorMessage });
       } else if (errorMessage.toLowerCase().includes('user') || 
                  errorMessage.toLowerCase().includes('email') || 
-                 errorMessage.toLowerCase().includes('username')) {
-        setErrors({ userIdAlias: errorMessage });
+                 errorMessage.toLowerCase().includes('username') ||
+                 errorMessage.toLowerCase().includes('not found')) {
+        // If user not found error comes at final step, go back to step 1
+        setCurrentStep(1);
+        setErrors({ userIdAlias: 'User not found. Please check your UserID, Alias, or Email.' });
       } else if (errorMessage.toLowerCase().includes('credential')) {
         setErrors({ general: errorMessage });
       } else {
@@ -268,10 +324,10 @@ const LoginForm = ({ onLogin }) => {
               <div className={`absolute inset-0 p-4 sm:p-8 lg:p-12 flex flex-col justify-center transition-transform duration-500 ease-in-out ${
                 currentStep === 1 ? 'translate-x-0' : '-translate-x-full'
               }`}>
-                <div className="w-full max-w-sm p-4 mx-auto bg-white border-2 border-green-600 border-solid shadow-xl rounded-xl sm:p-8">
+                <div className="w-full max-w-sm p-4 mx-auto bg-white border-2 border-purple-400 border-solid shadow-xl rounded-xl sm:p-8">
                   
                   <div className="mb-4 text-center sm:mb-8">
-                    <h1 className="mb-2 text-base font-bold tracking-wider text-green-600 sm:text-lg sm:mb-4">SMART CHECK</h1>
+                    <h1 className="mb-2 text-base font-bold tracking-wider text-purple-800 sm:text-lg sm:mb-4">SMART CHECK</h1>
                     <h2 className="text-xl font-bold text-gray-800 sm:text-xl">Sign In</h2>
                   </div>
 
@@ -306,7 +362,7 @@ const LoginForm = ({ onLogin }) => {
                     <button
                       onClick={handleFirstSignIn}
                       disabled={loading}
-                      className="flex items-center justify-center w-full px-4 py-2 space-x-2 text-sm font-semibold text-white transition-all duration-200 bg-green-600 rounded-sm hover:bg-green-900 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95"
+                      className="flex items-center justify-center w-full px-4 py-2 space-x-2 text-sm font-semibold text-white transition-all duration-200 bg-purple-800 rounded-sm hover:bg-purple-900 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95"
                     >
                       {loading ? (
                         <Loader2 className="w-5 h-5 animate-spin" />
@@ -326,12 +382,12 @@ const LoginForm = ({ onLogin }) => {
               <div className={`absolute inset-0 p-2 sm:p-6 lg:p-10 flex flex-col justify-center transition-transform duration-500 ease-in-out ${
                 currentStep === 2 ? 'translate-x-0' : 'translate-x-full'
               }`}>
-                <div className="w-full max-w-sm p-2 mx-auto bg-white border-2 border-green-600 border-solid shadow-xl rounded-xl sm:p-6">
+                <div className="w-full max-w-sm p-2 mx-auto bg-white border-2 border-purple-800 border-solid shadow-xl rounded-xl sm:p-6">
                   {/* Organization Header */}
                   <div className="mb-6 text-center sm:mb-8">
                     <div className="flex justify-center m-2">
-                      <div className="flex items-center justify-center w-8 h-8 border-2 border-green-600 rounded-full sm:w-12 sm:h-12">
-                        <span className="text-sm font-bold text-green-800 sm:text-sm">S-C</span>
+                      <div className="flex items-center justify-center w-8 h-8 border-2 border-purple-800 rounded-full sm:w-12 sm:h-12">
+                        <span className="text-sm font-bold text-purple-800 sm:text-sm">S-C</span>
                       </div>
                     </div>
                     <h2 className="font-semibold text-gray-800 text-md sm:text-md">SRIA</h2>
@@ -414,7 +470,7 @@ const LoginForm = ({ onLogin }) => {
                     </div>
 
                     {errors.general && (
-                      <div className="p-2 text-sm text-center text-red-700 rounded">
+                      <div className="text-sm text-center text-red-700 rounded">
                         {errors.general}
                       </div>
                     )}
@@ -422,7 +478,7 @@ const LoginForm = ({ onLogin }) => {
                     <button
                       onClick={handleFinalSignIn}
                       disabled={loading}
-                      className="flex items-center justify-center w-full px-4 py-2 space-x-2 text-sm font-medium text-white transition-all duration-200 bg-green-600 rounded-sm hover:bg-green-900 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95"
+                      className="flex items-center justify-center w-full px-4 py-2 space-x-2 text-sm font-medium text-white transition-all duration-200 bg-purple-800 rounded-sm hover:bg-purple-900 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95"
                     >
                       {loading ? (
                         <Loader2 className="w-5 h-5 animate-spin" />
@@ -448,7 +504,7 @@ const LoginForm = ({ onLogin }) => {
               {currentStep === 2 && (
                 <button
                   onClick={handleBackToStep1}
-                  className="absolute p-2 text-green-900 transition-all duration-200 rounded-sm top-4 left-4 bg-white/20 hover:bg-white/30 hover:scale-110 active:scale-95"
+                  className="absolute p-2 text-purple-900 transition-all duration-200 rounded-sm top-4 left-4 bg-white/20 hover:bg-white/30 hover:scale-110 active:scale-95"
                   title="Go Back"
                 >
                   <ArrowLeft className="w-5 h-5" />

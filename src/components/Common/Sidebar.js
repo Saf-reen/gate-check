@@ -96,7 +96,7 @@ const Sidebar = ({
       isDisabled
         ? "opacity-50 cursor-not-allowed text-slate-400"
         : isActive
-        ? "border-solid border-2 border-green-800 text-white"
+        ? "border-solid border-2 border-purple-800 text-white"
         : "text-slate-300 hover:bg-slate-700 hover:text-white"
     }`;
 
@@ -124,7 +124,7 @@ const Sidebar = ({
           {section.icon}
           <span className="flex-grow font-medium text-left">{section.title}</span>
           {isActive && (
-            <span className="w-2 h-2 bg-green-800 rounded-full"></span>
+            <span className="w-2 h-2 bg-purple-800 rounded-full"></span>
           )}
         </button>
       </div>
@@ -132,7 +132,7 @@ const Sidebar = ({
   };
 
   return (
-    <aside style={{width:"220px"}} className={`h-fill bg-slate-800 text-white flex flex-col shadow-lg ${className}`}>
+    <aside style={{width:"200px"}} className={`h-fill bg-slate-800 text-white flex flex-col shadow-lg ${className}`}>
       {/* Header */}
       <div className="flex justify-center p-4 text-center border-b border-slate-700">
         <div className="space-x-3">
@@ -155,7 +155,7 @@ const Sidebar = ({
                   className="object-cover w-full h-full rounded-full"
                 />
               ) : (
-                <div className="flex items-center justify-center w-full h-full bg-green-600 rounded-full">
+                <div className="flex items-center justify-center w-full h-full bg-purple-800 rounded-full">
                   <User className="w-4 h-4 text-white" />
                 </div>
               )}
@@ -173,8 +173,8 @@ const Sidebar = ({
       )} */}
 
       {/* Navigation */}
-      <nav className="flex-1 py-4 overflow-y-auto">
-        <div className="px-3 space-y-1">
+      <nav className="flex-1 py-4 overflow-y-auto ">
+        <div className="px-3 space-y-1 ">
           {sidebarSections.map((section) => renderNavLink(section))}
         </div>
       </nav>

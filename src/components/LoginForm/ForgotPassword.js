@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Eye, EyeOff, ArrowLeft, Mail, Loader2, User } from "lucide-react";
-// import { axiosInstance } from "../../utils/axiosInstance";
+import { axiosInstance } from "../utils/axiosInstance";
+import {api} from "../Auth/api"; // Adjust the import path as necessary
 
 const ForgotPassword = () => {
   // Local state for form inputs
@@ -72,8 +73,8 @@ const ForgotPassword = () => {
   const validatePassword = (password) => {
     const errors = [];
     
-    if (password.length < 8) {
-      errors.push("Password must be at least 8 characters long");
+    if (password.length < 6) {
+      errors.push("Password must be at least 6 characters long");
     }
     if (!/[A-Z]/.test(password)) {
       errors.push("Password must contain at least one uppercase letter");
@@ -92,7 +93,7 @@ const ForgotPassword = () => {
     return errors.length === 0;
   };
 
-  // Handle Enter key press for navigation
+  // // Handle Enter key press for navigation
   const handleKeyPress = (e, currentField) => {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -140,31 +141,35 @@ const ForgotPassword = () => {
     setIsLoading(true);
 
     // Simulate API call - uncomment your actual API code
-    setTimeout(() => {
-      setCurrentStep("otp");
-      setResendEnabled(false);
-      setResendTimer(30);
-      setIsLoading(false);
-    }, 1000);
-
-    // try {
-    //   const response = await axiosInstance.post(forgotPasswordUrl, { email });
-    //   if (response.status === 200) {
-    //     setCurrentStep("otp");
-    //     setResendEnabled(false);
-    //     setResendTimer(30);
-    //   }
-    // } catch (error) {
-    //   if (error.response) {
-    //     setError(error.response.data?.error || "Error sending OTP");
-    //   } else if (error.request) {
-    //     setError("Network error. Please check your connection and try again.");
-    //   } else {
-    //     setError("An unexpected error occurred. Please try again.");
-    //   }
-    // } finally {
+    // setTimeout(() => {
+    //   setCurrentStep("otp");
+    //   setResendEnabled(false);
+    //   setResendTimer(30);
     //   setIsLoading(false);
-    // }
+    // }, 1000);
+
+    try {
+      const response = await api.auth.forgotPassword( { identifier:email });
+
+      console.log(email)
+      console.log(response);
+      
+      if (response.status === 200) {
+        setCurrentStep("otp");
+        setResendEnabled(false);
+        setResendTimer(30);
+      }
+    } catch (error) {
+      if (error.response) {
+        setError(error.response.data?.error || "Error sending OTP");
+      } else if (error.request) {
+        setError("Network error. Please check your connection and try again.");
+      } else {
+        setError("An unexpected error occurred. Please try again.");
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Verify OTP request
@@ -186,32 +191,33 @@ const ForgotPassword = () => {
 
     setIsLoading(true);
 
-    // Simulate API call - uncomment your actual API code
-    setTimeout(() => {
-      setCurrentStep("reset");
-      setIsLoading(false);
-    }, 1000);
-
-    // try {
-    //   const response = await axiosInstance.post(verifyOtpUrl, { 
-    //     email: email.trim(), 
-    //     otp: otp.trim() 
-    //   });
-      
-    //   if (response.status === 200) {
-    //     setCurrentStep("reset");
-    //   }
-    // } catch (error) {
-    //   if (error.response) {
-    //     setError(error.response.data?.error || "Invalid OTP");
-    //   } else if (error.request) {
-    //     setError("Network error. Please check your connection and try again.");
-    //   } else {
-    //     setError("An unexpected error occurred. Please try again.");
-    //   }
-    // } finally {
+    // // Simulate API call - uncomment your actual API code
+    // setTimeout(() => {
+    //   setCurrentStep("reset");
     //   setIsLoading(false);
-    // }
+    // }, 1000);
+
+    const userData={
+      identifier: email.trim(), 
+      otp: otp.trim() 
+    }
+    try {
+      const response = await api.auth.verifyOtp(userData);
+      console.log(userData);
+      if (response.status === 200) {
+        setCurrentStep("reset");
+      }
+    } catch (error) {
+      if (error.response) {
+        setError(error.response.data?.error || "Invalid OTP");
+      } else if (error.request) {
+        setError("Network error. Please check your connection and try again.");
+      } else {
+        setError("An unexpected error occurred. Please try again.");
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Reset password request
@@ -235,37 +241,38 @@ const ForgotPassword = () => {
     setIsLoading(true);
 
     // Simulate success - uncomment your actual API code
-    setTimeout(() => {
-      setError("Password reset successful! Redirecting to login...");
-      setIsLoading(false);
-      setTimeout(() => {
-        window.location.href = "/login";
-      }, 3000);
-    }, 1000);
-
-    // try {
-    //   const response = await axiosInstance.post(resetPasswordUrl, {
-    //     email: email.trim(),
-    //     new_password: newPassword
-    //   });
-      
-    //   if (response.status === 200) {
-    //     setError("Password reset successful! Redirecting to login...");
-    //     setTimeout(() => {
-    //       window.location.href = "/login";
-    //     }, 3000);
-    //   }
-    // } catch (error) {
-    //   if (error.response) {
-    //     setError(error.response.data?.error || "Failed to reset password");
-    //   } else if (error.request) {
-    //     setError("Network error. Please check your connection and try again.");
-    //   } else {
-    //     setError("An unexpected error occurred. Please try again.");
-    //   }
-    // } finally {
+    // setTimeout(() => {
+    //   setError("Password reset successful! Redirecting to login...");
     //   setIsLoading(false);
-    // }
+    //   setTimeout(() => {
+    //     window.location.href = "/login";
+    //   }, 3000);
+    // }, 1000);
+
+    try {
+      const response = await api.auth.newPasswod( {
+        identifier: email.trim(),
+        new_password: newPassword,
+        confirm_password: confirmPassword
+      });
+      
+      if (response.status === 200) {
+        setError("Password reset successful! Redirecting to login...");
+        setTimeout(() => {
+          window.location.href = "/login";
+        }, 3000);
+      }
+    } catch (error) {
+      if (error.response) {
+        setError(error.response.data?.error || "Failed to reset password");
+      } else if (error.request) {
+        setError("Network error. Please check your connection and try again.");
+      } else {
+        setError("An unexpected error occurred. Please try again.");
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Toggle password visibility
@@ -307,10 +314,10 @@ const ForgotPassword = () => {
           
           {/* Background geometric shapes - responsive */}
           <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            <div className="absolute w-16 h-16 transform bg-green-200 rounded-lg top-5 left-5 sm:top-10 sm:left-10 sm:w-32 sm:h-32 opacity-30 rotate-12 animate-pulse"></div>
+            <div className="absolute w-16 h-16 transform bg-purple-200 rounded-lg top-5 left-5 sm:top-10 sm:left-10 sm:w-32 sm:h-32 opacity-30 rotate-12 animate-pulse"></div>
             <div className="absolute w-12 h-12 bg-pink-200 rounded-full top-20 right-10 sm:top-40 sm:right-20 sm:w-24 sm:h-24 opacity-40 animate-bounce"></div>
             <div className="absolute w-16 h-16 transform rounded-lg opacity-25 bottom-10 left-1/4 sm:bottom-20 sm:w-28 sm:h-28 bg-black-200 -rotate-6 animate-pulse"></div>
-            <div className="absolute w-10 h-10 bg-green-300 rounded-full top-1/3 left-1/3 sm:w-20 sm:h-20 opacity-20 animate-ping"></div>
+            <div className="absolute w-10 h-10 bg-purple-300 rounded-full top-1/3 left-1/3 sm:w-20 sm:h-20 opacity-20 animate-ping"></div>
           </div>
 
           <div className="relative flex flex-col min-h-screen overflow-hidden bg-white shadow-2xl sm:min-h-screen lg:flex-row">
@@ -319,11 +326,11 @@ const ForgotPassword = () => {
             <div className={`${isMobile ? 'order-1' : 'order-2'} flex-1 relative bg-white`}>
               
               <div className="absolute inset-0 flex flex-col justify-center p-4 sm:p-8 lg:p-12">
-                <div className="w-full max-w-sm p-4 mx-auto bg-white border-2 border-green-600 border-solid shadow-xl rounded-xl sm:p-8">
+                <div className="w-full max-w-sm p-4 mx-auto bg-white border-2 border-purple-800 border-solid shadow-xl rounded-xl sm:p-8">
                   
                   {/* Header */}
                   <div className="mb-4 text-center sm:mb-8">
-                    <h1 className="mb-2 text-base font-bold tracking-wider text-green-800 sm:text-lg sm:mb-4">SMART CHECK</h1>
+                    <h1 className="mb-2 text-base font-bold tracking-wider text-purple-800 sm:text-lg sm:mb-4">SMART CHECK</h1>
                     <h2 className="text-xl font-bold text-gray-800 sm:text-xl">Reset Password</h2>
                     <p className="mt-2 text-xs text-gray-600 sm:text-sm">
                       {currentStep === "email" && "Enter your email to receive a reset code"}
@@ -359,7 +366,7 @@ const ForgotPassword = () => {
                       <button
                         onClick={handleEmailSubmit}
                         disabled={isLoading}
-                        className="flex items-center justify-center w-full px-4 py-2 space-x-2 text-sm font-semibold text-white transition-all duration-200 bg-green-600 rounded-sm hover:bg-green-900 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95"
+                        className="flex items-center justify-center w-full px-4 py-2 space-x-2 text-sm font-semibold text-white transition-all duration-200 bg-purple-800 rounded-sm hover:bg-purple-900 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95"
                       >
                         {isLoading ? (
                           <Loader2 className="w-5 h-5 animate-spin" />
@@ -407,7 +414,7 @@ const ForgotPassword = () => {
                       <button
                         onClick={handleOtpSubmit}
                         disabled={isLoading}
-                        className="flex items-center justify-center w-full px-4 py-2 space-x-2 text-sm font-semibold text-white transition-all duration-200 bg-green-600 rounded-sm hover:bg-green-900 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95"
+                        className="flex items-center justify-center w-full px-4 py-2 space-x-2 text-sm font-semibold text-white transition-all duration-200 bg-purple-800 rounded-sm hover:bg-purple-900 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95"
                       >
                         {isLoading ? (
                           <Loader2 className="w-5 h-5 animate-spin" />
@@ -503,7 +510,7 @@ const ForgotPassword = () => {
                       <button
                         onClick={handlePasswordReset}
                         disabled={isLoading}
-                        className="flex items-center justify-center w-full px-4 py-2 space-x-2 text-sm font-semibold text-white transition-all duration-200 bg-green-600 rounded-sm hover:bg-green-900 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95"
+                        className="flex items-center justify-center w-full px-4 py-2 space-x-2 text-sm font-semibold text-white transition-all duration-200 bg-purple-800 rounded-sm hover:bg-purple-900 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95"
                       >
                         {isLoading ? (
                           <Loader2 className="w-5 h-5 animate-spin" />
@@ -523,7 +530,7 @@ const ForgotPassword = () => {
                     <div 
                       className={`text-center p-1 text-sm mt-2 ${
                         error.includes("successful") 
-                          ? "text-green-600 bg-green-50 rounded" 
+                          ? "text-purple-800 bg-purple-50 rounded" 
                           : "text-red-500"
                       }`}
                       role="alert"

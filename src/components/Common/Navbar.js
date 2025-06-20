@@ -1,21 +1,72 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Menu, Bell, Search, User, LogOut, Settings, ChevronDown } from 'lucide-react';
+import authService from '../Auth/AuthService';
+import { api } from '../Auth/api'; // Adjust the import path as necessary
 
 const Navbar = ({ user, onSidebarToggle, onLogout }) => {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
 
   const handleProfileClick = () => {
     setShowUserMenu(false);
     navigate('/profile');
   };
 
-  const handleLogoutClick = () => {
-    setShowUserMenu(false);
-    onLogout();
-  };
+  // const handleLogoutClick = () => {
+  //   setShowUserMenu(false);
+  //   onLogout();
+  // };
 
+  const handleLogoutClick = async () => {
+      try {
+        setLoading(true);
+        
+        // Call logout API endpoint
+        try {
+          await api.auth.logout();
+        } catch (logoutError) {
+          console.warn('Logout API call failed:', logoutError);
+        }
+        
+        // Clear local storage
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('refreshToken');
+        
+        // Clear auth service
+        if (authService) {
+          if (authService.logout) authService.logout();
+          if (authService.clearUser) authService.clearUser();
+          if (authService.clearToken) authService.clearToken();
+        }
+        
+        // Log the logout event
+        console.log({
+          timestamp: new Date().toISOString(),
+          event: 'LOGOUT',
+          data: {
+            reason: 'USER_INITIATED'
+          },
+          userAgent: navigator.userAgent,
+          ip: 'client-side'
+        });
+        
+        // Call parent logout callback
+        if (onLogout) {
+          onLogout();
+        }
+        
+        console.log('Logout successful');
+      } catch (error) {
+        console.error('Logout error:', error);
+        if (onLogout) {
+          onLogout();
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
   return (
     <nav className="px-4 py-2 bg-white border-b border-gray-200 shadow-sm">
       <div className="flex items-center justify-between">
@@ -48,7 +99,7 @@ const Navbar = ({ user, onSidebarToggle, onLogout }) => {
           {/* <button className="relative p-1 transition-colors rounded-sm hover:bg-gray-100">
             <Bell className="w-5 h-5 text-gray-600" /> */}
             {/* Notification badge */}
-            {/* <span className="absolute w-2 h-2 bg-green-600 rounded-full top-1 right-1"></span>
+            {/* <span className="absolute w-2 h-2 bg-purple-800 rounded-full top-1 right-1"></span>
           </button> */}
 
           {/* User menu */}
@@ -57,8 +108,8 @@ const Navbar = ({ user, onSidebarToggle, onLogout }) => {
               onClick={() => setShowUserMenu(!showUserMenu)}
               className="flex items-center p-1 space-x-2 transition-colors rounded-sm hover:bg-gray-100"
             >
-              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-green-600 to-yellow-100">
-                <span className="text-sm font-semibold text-white">
+              <div className="flex items-center justify-center w-8 h-8 bg-white border border-purple-800 rounded-full">
+                <span className="text-sm font-semibold text-purple-800">
                   {user?.name?.charAt(0)?.toUpperCase() || 'U'}
                 </span>
               </div>
@@ -94,7 +145,7 @@ const Navbar = ({ user, onSidebarToggle, onLogout }) => {
                 
                 <button
                   onClick={handleLogoutClick}
-                  className="flex items-center w-full px-2 py-1 space-x-1 text-sm text-green-600 transition-colors hover:bg-green-50"
+                  className="flex items-center w-full px-2 py-1 space-x-1 text-sm text-purple-800 transition-colors hover:bg-purple-50"
                 >
                   <LogOut className="w-4 h-3" />
                   <span>Sign out</span>

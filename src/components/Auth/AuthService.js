@@ -15,8 +15,8 @@ class AuthService {
     // Setup axios interceptors
     setupAxiosInterceptors(this);
     
-    // Initialize session monitoring
-    this.initializeSessionMonitoring();
+    // Initialize basic monitoring (without validation)
+    this.initializeBasicMonitoring();
   }
 
   // Event listener management
@@ -72,20 +72,9 @@ class AuthService {
     }
   }
 
-  // Enhanced logout with cleanup
+  // Simplified logout without server notification
   async logout(reason = 'USER_INITIATED') {
     try {
-      const token = this.getToken();
-      
-      if (token) {
-        // Notify server about logout
-        try {
-          await api.auth.logout();
-        } catch (error) {
-          console.warn('Server logout notification failed:', error);
-        }
-      }
-
       // Clear all authentication data
       this.clearAuthData();
       
@@ -100,7 +89,7 @@ class AuthService {
       return { success: true };
     } catch (error) {
       console.error('Logout error:', error);
-      // Even if server call fails, clear local data
+      // Even if there's an error, clear local data
       this.clearAuthData();
       this.stopSessionMonitoring();
       throw error;
@@ -220,22 +209,6 @@ class AuthService {
     }
   }
 
-  // Validate current session
-  async validateSession() {
-    try {
-      const token = this.getToken();
-      if (!token) {
-        return { valid: false };
-      }
-
-      const response = await api.auth.validateSession();
-      return { valid: true, user: response.data.user };
-    } catch (error) {
-      console.error('Session validation error:', error);
-      return { valid: false };
-    }
-  }
-
   // Two-factor authentication setup
   async setupTwoFactor() {
     try {
@@ -303,7 +276,8 @@ class AuthService {
     try {
       const decoded = decodeJwtToken(token);
       if (decoded && decoded.exp) {
-        return Date.now() >= decoded.exp * 1000;
+        // Add a 30-second buffer to prevent edge cases
+        return Date.now() >= (decoded.exp * 1000) - 30000;
       }
     } catch (error) {
       console.error('Error checking token expiration:', error);
@@ -341,8 +315,8 @@ class AuthService {
     return userRole === roles;
   }
 
-  // Session monitoring
-  initializeSessionMonitoring() {
+  // Basic monitoring without session validation
+  initializeBasicMonitoring() {
     // Check for existing session on initialization
     if (this.isAuthenticated() && !this.isTokenExpired()) {
       const token = this.getToken();
@@ -372,16 +346,22 @@ class AuthService {
       }
     });
 
-    // Listen for tab visibility changes
-    document.addEventListener('visibilitychange', () => {
-      if (!document.hidden && this.isAuthenticated()) {
-        // Tab became visible, validate session
-        this.validateSession().then(result => {
-          if (!result.valid) {
-            this.logout('SESSION_INVALID');
-          }
-        });
+    // Track user activity (optional - for last activity timestamp)
+    const updateActivity = () => {
+      if (this.isAuthenticated()) {
+        localStorage.setItem('lastActivity', Date.now().toString());
       }
+    };
+
+    // Update activity on user interactions (debounced)
+    let activityTimer;
+    const debouncedUpdateActivity = () => {
+      clearTimeout(activityTimer);
+      activityTimer = setTimeout(updateActivity, 5000); // Update every 5 seconds max
+    };
+
+    ['click', 'keypress', 'scroll'].forEach(event => {
+      document.addEventListener(event, debouncedUpdateActivity, { passive: true });
     });
   }
 
@@ -432,6 +412,8 @@ class AuthService {
     if (expiresIn) {
       this.updateSessionTimeout(expiresIn);
     }
+    // Set initial activity timestamp
+    localStorage.setItem('lastActivity', Date.now().toString());
   }
 
   clearAuthData() {
@@ -439,6 +421,9 @@ class AuthService {
     localStorage.removeItem(this.userKey);
     localStorage.removeItem(this.refreshTokenKey);
     localStorage.removeItem(this.sessionTimeoutKey);
+    localStorage.removeItem('lastActivity');
+    localStorage.removeItem('demoAuthToken');
+    localStorage.removeItem('tokenExpiry');
   }
 
   // Logging for audit trail
