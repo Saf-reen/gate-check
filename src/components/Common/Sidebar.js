@@ -13,7 +13,8 @@ const Sidebar = ({
   activeSection = "dashboard", 
   onSectionChange, 
   userProfile,
-  className = ""
+  className = "",
+  isOpen = true
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -79,12 +80,12 @@ const Sidebar = ({
       icon: <Building2 size={20} />,
       route: "/Organization"
     },
-    {
-      id: "user",
-      title: "User",
-      icon: <Users size={20} />,
-      route: "/User"
-    }
+    // {
+    //   id: "user",
+    //   title: "User",
+    //   icon: <Users size={20} />,
+    //   route: "/User"
+    // }
   ];
 
   // Render navigation link
@@ -132,7 +133,12 @@ const Sidebar = ({
   };
 
   return (
-    <aside style={{width:"200px"}} className={`h-fill bg-slate-800 text-white flex flex-col shadow-lg ${className}`}>
+    <aside 
+      className={`fixed left-0 top-0 h-screen bg-slate-800 text-white flex flex-col shadow-lg transition-transform duration-300 z-20 ${
+        isOpen ? 'translate-x-0' : '-translate-x-full'
+      } ${className}`}
+      style={{width:"200px"}}
+    >
       {/* Header */}
       <div className="flex justify-center p-4 text-center border-b border-slate-700">
         <div className="space-x-3">

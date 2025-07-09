@@ -1,16 +1,25 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Search, Filter, FileText, Plus, MoreVertical, Phone, Clock, User, Users, Upload, Download, ChevronDown, X, Calendar, MapPin, Car, Mail, Building2, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
 import { api } from '../Auth/api';
+import VisitorTable from './VisitorTable';
+import VisitorForm from './VisitorForm';
+import Header from './Header';
+import SearchBar from './SearchBar';
+import {Search, Filter, FileText, Plus, MoreVertical, Phone, Clock, User, Users, Upload, Download, ChevronDown, X, Calendar, MapPin, Car, Mail, Building2, Loader2, AlertCircle, CheckCircle, Tag } from 'lucide-react';
 
-const GateCheck = ({ onVisitorCountChange }) => {
+const GateCheck = ({ onVisitorCountChange, onVendorCountChange, userCompany, user }) => {
+  // All the state declarations
   const [visitors, setVisitors] = useState([]);
+  const [vendors, setVendors] = useState([]);
   const [recurringVisitors, setRecurringVisitors] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [filteredVisitors, setFilteredVisitors] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterType, setFilterType] = useState('all');
+  const [filterCategory, setFilterCategory] = useState('all');
   const [loading, setLoading] = useState(false);
   const [submitLoading, setSubmitLoading] = useState(false);
+  const [categoriesLoading, setCategoriesLoading] = useState(false);
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [showExcelDropdown, setShowExcelDropdown] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -20,89 +29,203 @@ const GateCheck = ({ onVisitorCountChange }) => {
 
   // Form state
   const [formData, setFormData] = useState({
-    name: '',
-    phone: '',
-    email: '',
-    purpose: '',
-    hostName: '',
-    department: '',
-    company: '',
-    address: '',
-    belongings: '',
-    vehicleType: '',
-    vehicleNo: '',
-    visitingDate: '',
-    visitingTime: '',
-    allowingHours: '6',
-    category: 'NA',
-    recurringType: 'onetime',
-    gender: ''
+    visitor_name: '',
+    mobile_number: '',
+    email_id: '',
+    gender: '',
+    pass_type: 'ONE_TIME',
+    visiting_date: '',
+    visiting_time: '',
+    recurring_days: '',
+    allowing_hours: '8',
+    category: '',
+    whom_to_meet: '',
+    coming_from:  user.company || '',
+    purpose_of_visit: '',
+    belongings_tools: '',
+    security_notes: '',
+    vehicle_type: '',
+    vehicle_number: '',
+    valid_until: ''
   });
 
-  // Load visitors data from backend
+  // Fixed fetchCategories function
+  const fetchCategories = useCallback(async () => {
+    setCategoriesLoading(true);
+    try {
+      console.log('Fetching categories...');
+      const response = await api.visitors.category();
+      console.log('Categories response:', response);
+      
+      if (response && response.data) {
+        // Handle different response structures
+        const categoriesData = response.data.categories || response.data;
+        console.log('Categories data:', categoriesData);
+        
+        if (Array.isArray(categoriesData)) {
+          setCategories(categoriesData);
+        } else {
+          console.error('Categories data is not an array:', categoriesData);
+          setCategories([]);
+        }
+      } else {
+        console.error('No data in categories response');
+        setCategories([]);
+      }
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      console.error('Error details:', error.response?.data || error.message);
+      
+      // Set default categories if API fails
+      setCategories([
+        { id: 1, name: 'Business', value: 'BUSINESS' },
+        { id: 2, name: 'Personal', value: 'PERSONAL' },
+        { id: 3, name: 'Official', value: 'OFFICIAL' },
+        { id: 4, name: 'Delivery', value: 'DELIVERY' },
+        { id: 5, name: 'Maintenance', value: 'MAINTENANCE' },
+        { id: 6, name: 'Interview', value: 'INTERVIEW' },
+        { id: 7, name: 'Meeting', value: 'MEETING' },
+        { id: 8, name: 'Training', value: 'TRAINING' },
+        { id: 9, name: 'Event', value: 'EVENT' },
+        { id: 10, name: 'Other', value: 'OTHER' }
+      ]);
+    } finally {
+      setCategoriesLoading(false);
+    }
+  }, []);
+
+  // Fixed fetchVisitors function
   const fetchVisitors = useCallback(async () => {
     setLoading(true);
     try {
+      console.log('Fetching visitors...');
+      
       // Fetch regular visitors
       const visitorsResponse = await api.visitors.getAll();
-      if (visitorsResponse.data) {
-        setVisitors(visitorsResponse.data.visitors || visitorsResponse.data);
+      console.log('Visitors response:', visitorsResponse);
+      
+      if (visitorsResponse && visitorsResponse.data) {
+        const visitorsData = visitorsResponse.data.visitors || visitorsResponse.data;
+        console.log('Visitors data from backend:', visitorsData);
+        
+        if (Array.isArray(visitorsData)) {
+          setVisitors(visitorsData);
+          console.log('Set visitors:', visitorsData.length, 'items');
+          
+          // Log first visitor to see structure
+          if (visitorsData.length > 0) {
+            console.log('First visitor structure:', visitorsData[0]);
+            console.log('Available fields:', Object.keys(visitorsData[0]));
+          }
+        } else {
+          console.error('Visitors data is not an array:', visitorsData);
+          setVisitors([]);
+        }
+      } else {
+        console.error('No data in visitors response');
+        setVisitors([]);
       }
 
       // Fetch recurring visitors
-      const recurringResponse = await api.visitors.getRecurring();
-      if (recurringResponse.data) {
-        setRecurringVisitors(recurringResponse.data.visitors || recurringResponse.data);
+      try {
+        console.log('Fetching recurring visitors...');
+        const recurringResponse = await api.visitors.getRecurring();
+        console.log('Recurring response:', recurringResponse);
+        
+        if (recurringResponse && recurringResponse.data) {
+          const recurringData = recurringResponse.data.visitors || recurringResponse.data;
+          console.log('Recurring visitors data from backend:', recurringData);
+          
+          if (Array.isArray(recurringData)) {
+            setRecurringVisitors(recurringData);
+            console.log('Set recurring visitors:', recurringData.length, 'items');
+            
+            if (recurringData.length > 0) {
+              console.log('First recurring visitor structure:', recurringData[0]);
+            }
+          } else {
+            console.error('Recurring data is not an array:', recurringData);
+            setRecurringVisitors([]);
+          }
+        } else {
+          console.error('No data in recurring response');
+          setRecurringVisitors([]);
+        }
+      } catch (recurringError) {
+        console.error('Error fetching recurring visitors:', recurringError);
+        console.error('Recurring error details:', recurringError.response?.data || recurringError.message);
+        setRecurringVisitors([]);
       }
+
     } catch (error) {
       console.error('Error fetching visitors:', error);
+      console.error('Error details:', error.response?.data || error.message);
       setErrors({ general: 'Failed to load visitors data. Please try again.' });
+      setVisitors([]);
+      setRecurringVisitors([]);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  // Load initial data
+  // Effect to fetch data on component mount
   useEffect(() => {
+    console.log('Component mounted, fetching data...');
+    fetchCategories();
     fetchVisitors();
-  }, [fetchVisitors]);
+  }, [fetchCategories, fetchVisitors]);
 
-  // Pass visitor count to parent component whenever visitors change
+  // Effect to filter visitors based on search and filters
+  useEffect(() => {
+    console.log('Filtering visitors...');
+    console.log('Current visitors:', visitors.length);
+    console.log('Current recurring visitors:', recurringVisitors.length);
+    console.log('Show recurring:', showRecurring);
+    
+    const currentVisitors = showRecurring ? recurringVisitors : visitors;
+    console.log('Current visitors to filter:', currentVisitors.length);
+    
+    let filtered = currentVisitors;
+
+    // Apply search filter
+    if (searchTerm) {
+      filtered = filtered.filter(visitor =>
+        visitor.pass_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        visitor.visitor_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        visitor.mobile_number?.includes(searchTerm) ||
+        visitor.email_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        visitor.whom_to_meet?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        visitor.purpose_of_visit?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Apply status filter
+    if (filterStatus !== 'all') {
+      filtered = filtered.filter(visitor => visitor.status === filterStatus);
+    }
+
+    // Apply type filter
+    if (filterType !== 'all') {
+      filtered = filtered.filter(visitor => visitor.pass_type === filterType);
+    }
+
+    // Apply category filter
+    if (filterCategory !== 'all') {
+      filtered = filtered.filter(visitor => visitor.category === filterCategory);
+    }
+
+    console.log('Filtered visitors:', filtered.length);
+    setFilteredVisitors(filtered);
+  }, [visitors, recurringVisitors, searchTerm, filterStatus, filterType, filterCategory, showRecurring]);
+
+  // Effect to update parent component counts
   useEffect(() => {
     if (onVisitorCountChange) {
       onVisitorCountChange(visitors.length);
     }
   }, [visitors, onVisitorCountChange]);
 
-  // Filter visitors based on search, status, and type
-  useEffect(() => {
-    let filtered = showRecurring ? recurringVisitors : visitors;
-
-    // Filter by search term
-    if (searchTerm) {
-      filtered = filtered.filter(visitor =>
-        visitor.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        visitor.phone?.includes(searchTerm) ||
-        visitor.purpose?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        visitor.hostName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        visitor.company?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    // Filter by status (only for regular visitors)
-    if (filterStatus !== 'all' && !showRecurring) {
-      filtered = filtered.filter(visitor => visitor.status === filterStatus);
-    }
-
-    // Filter by type
-    if (filterType !== 'all') {
-      filtered = filtered.filter(visitor => visitor.type === filterType);
-    }
-
-    setFilteredVisitors(filtered);
-  }, [searchTerm, filterStatus, filterType, visitors, recurringVisitors, showRecurring]);
-
-  // Validation functions similar to LoginForm
+  // Validation functions
   const validatePhoneNumber = (phone) => {
     const phoneRegex = /^[6-9]\d{9}$/;
     if (!phone.trim()) {
@@ -115,7 +238,9 @@ const GateCheck = ({ onVisitorCountChange }) => {
   };
 
   const validateEmail = (email) => {
-    if (!email.trim()) return { isValid: true, error: null }; // Email is optional
+    if (!email.trim()) {
+      return { isValid: false, error: 'Please enter email address' };
+    }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email.trim())) {
       return { isValid: false, error: 'Please enter a valid email address' };
@@ -130,33 +255,87 @@ const GateCheck = ({ onVisitorCountChange }) => {
     return { isValid: true, error: null };
   };
 
+  const validateDateRange = (visitingDate, validUntil) => {
+    if (!visitingDate || !validUntil) {
+      return { isValid: true, error: null };
+    }
+
+    const visiting = new Date(visitingDate);
+    const until = new Date(validUntil);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (visiting < today) {
+      return { isValid: false, error: 'Visiting date cannot be in the past' };
+    }
+
+    if (visiting > until) {
+      return { isValid: false, error: 'Visiting date cannot be after valid until date' };
+    }
+
+    return { isValid: true, error: null };
+  };
+
   const validateForm = () => {
     const newErrors = {};
 
     // Validate required fields
-    const nameValidation = validateRequired(formData.name, 'visitor name');
-    if (!nameValidation.isValid) newErrors.name = nameValidation.error;
+    const nameValidation = validateRequired(formData.visitor_name, 'visitor name');
+    if (!nameValidation.isValid) newErrors.visitor_name = nameValidation.error;
 
-    const phoneValidation = validatePhoneNumber(formData.phone);
-    if (!phoneValidation.isValid) newErrors.phone = phoneValidation.error;
+    const phoneValidation = validatePhoneNumber(formData.mobile_number);
+    if (!phoneValidation.isValid) newErrors.mobile_number = phoneValidation.error;
 
-    const emailValidation = validateEmail(formData.email);
-    if (!emailValidation.isValid) newErrors.email = emailValidation.error;
-
-    const dateValidation = validateRequired(formData.visitingDate, 'visiting date');
-    if (!dateValidation.isValid) newErrors.visitingDate = dateValidation.error;
-
-    // Validate visiting date is not in the past (except today)
-    const selectedDate = new Date(formData.visitingDate);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    if (selectedDate < today) {
-      newErrors.visitingDate = 'Visiting date cannot be in the past';
+    const emailValidation = validateEmail(formData.email_id);
+    if (!emailValidation.isValid) newErrors.email_id = emailValidation.error;
+    
+    if (!formData.gender.trim()) {
+      newErrors.gender = 'Please select gender';
     }
 
-    // Validate purpose
-    if (!formData.purpose.trim()) {
-      newErrors.purpose = 'Please enter purpose of visit';
+    if (!formData.pass_type.trim()) {
+      newErrors.pass_type = 'Please select pass type';
+    }
+
+    if (!formData.visiting_date.trim()) {
+      newErrors.visiting_date = 'Please select visiting date';
+    }
+
+    if (!formData.visiting_time.trim()) {
+      newErrors.visiting_time = 'Please enter visiting time';
+    }
+
+    if (!formData.allowing_hours.trim()) {
+      newErrors.allowing_hours = 'Please enter allowing hours';
+    }
+
+    if (formData.purpose_of_visit.trim() === '') {
+      newErrors.purpose_of_visit = 'Please enter purpose of visit';
+    }
+
+    // Validate visiting date is not in the past
+    if (formData.visiting_date) {
+      const selectedDate = new Date(formData.visiting_date);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (selectedDate < today) {
+        newErrors.visiting_date = 'Visiting date cannot be in the past';
+      }
+    }
+
+    // For recurring passes, validate recurring days and valid until
+    if (formData.pass_type === 'RECURRING') {
+      if (!formData.recurring_days.trim()) {
+        newErrors.recurring_days = 'Please enter number of recurring days';
+      }
+      if (!formData.valid_until.trim()) {
+        newErrors.valid_until = 'Please select valid until date';
+      }
+    }
+
+    // Validate category
+    if (!formData.category.trim()) {
+      newErrors.category = 'Please select a category';
     }
 
     return newErrors;
@@ -177,23 +356,24 @@ const GateCheck = ({ onVisitorCountChange }) => {
 
   const resetForm = () => {
     setFormData({
-      name: '',
-      phone: '',
-      email: '',
-      purpose: '',
-      hostName: '',
-      department: '',
-      company: '',
-      address: '',
-      belongings: '',
-      vehicleType: '',
-      vehicleNo: '',
-      visitingDate: '',
-      visitingTime: '',
-      allowingHours: '6',
-      category: 'NA',
-      recurringType: 'onetime',
-      gender: ''
+      visitor_name: '',
+      mobile_number: '',
+      email_id: '',
+      gender: '',
+      pass_type: 'ONE_TIME',
+      visiting_date: '',
+      visiting_time: '',
+      recurring_days: '',
+      allowing_hours: '8',
+      category: '',
+      whom_to_meet: '',
+      coming_from: user.company || '',
+      purpose_of_visit: '',
+      belongings_tools: '',
+      security_notes: '',
+      vehicle_type: '',
+      vehicle_number: '',
+      valid_until: ''
     });
     setErrors({});
     setSuccessMessage('');
@@ -216,59 +396,62 @@ const GateCheck = ({ onVisitorCountChange }) => {
     try {
       // Prepare payload for API
       const visitorPayload = {
-        name: formData.name.trim(),
-        phone: formData.phone.trim(),
-        email: formData.email.trim() || null,
-        purpose: formData.purpose.trim(),
-        hostName: formData.hostName.trim(),
-        department: formData.department.trim(),
-        company: formData.company.trim() || null,
-        address: formData.address.trim() || null,
-        belongings: formData.belongings.trim() || null,
-        vehicleType: formData.vehicleType || null,
-        vehicleNo: formData.vehicleNo.trim() || null,
-        visitingDate: formData.visitingDate,
-        visitingTime: formData.visitingTime || null,
-        allowingHours: parseInt(formData.allowingHours),
-        category: formData.category,
-        gender: formData.gender || null,
-        isRecurring: formData.recurringType === 'recurring'
+        visitor_name: formData.visitor_name.trim(),
+        mobile_number: formData.mobile_number.trim(),
+        email_id: formData.email_id.trim(),
+        gender: formData.gender,
+        pass_type: formData.pass_type,
+        visiting_date: formData.visiting_date,
+        visiting_time: formData.visiting_time,
+        recurring_days: formData.pass_type === 'RECURRING' ? parseInt(formData.recurring_days) : null,
+        allowing_hours: parseInt(formData.allowing_hours),
+        category: formData.category.trim(),
+        whom_to_meet: formData.whom_to_meet.trim() || '',
+        coming_from: formData.coming_from.trim() || '',
+        purpose_of_visit: formData.purpose_of_visit.trim(),
+        belongings_tools: formData.belongings_tools.trim() || '',
+        security_notes: formData.security_notes.trim() || null,
+        vehicle_type: formData.vehicle_type || null,
+        vehicle_number: formData.vehicle_number.trim() || null,
+        valid_until: formData.valid_until || null
       };
 
       console.log('Submitting visitor data:', visitorPayload);
 
-      // Choose appropriate API endpoint based on recurring type
+      // Choose appropriate API endpoint based on pass type
       let response;
-      if (formData.recurringType === 'recurring') {
+      if (formData.pass_type === 'RECURRING') {
         response = await api.visitors.createRecurring(visitorPayload);
       } else {
         response = await api.visitors.create(visitorPayload);
       }
 
-      if (response.data) {
+      console.log('Submit response:', response);
+
+      if (response && response.data) {
         const newVisitor = response.data.visitor || response.data;
+        console.log('New visitor created:', newVisitor);
         
         // Add to appropriate list based on type
-        if (formData.recurringType === 'recurring') {
+        if (formData.pass_type === 'RECURRING') {
           setRecurringVisitors(prev => [newVisitor, ...prev]);
         } else {
           setVisitors(prev => [newVisitor, ...prev]);
         }
 
-        setSuccessMessage(`Visitor ${formData.recurringType === 'recurring' ? 'recurring pass' : ''} added successfully!`);
+        setSuccessMessage(`Visitor ${formData.pass_type === 'RECURRING' ? 'recurring pass' : ''} added successfully!`);
         
         // Reset form and close modal after short delay
         setTimeout(() => {
           setShowAddModal(false);
           resetForm();
         }, 1500);
-
-        console.log('Visitor added successfully:', response.data);
       }
     } catch (error) {
       console.error('Error adding visitor:', error);
+      console.error('Error details:', error.response?.data || error.message);
       
-      // Handle different types of errors similar to LoginForm
+      // Handle different types of errors
       let errorMessage = 'Failed to add visitor. Please try again.';
       
       if (error.response?.data?.error) {
@@ -292,11 +475,11 @@ const GateCheck = ({ onVisitorCountChange }) => {
 
       // Handle specific error types
       if (errorMessage.toLowerCase().includes('phone') || errorMessage.toLowerCase().includes('mobile')) {
-        setErrors({ phone: errorMessage });
+        setErrors({ mobile_number: errorMessage });
       } else if (errorMessage.toLowerCase().includes('email')) {
-        setErrors({ email: errorMessage });
+        setErrors({ email_id: errorMessage });
       } else if (errorMessage.toLowerCase().includes('duplicate') || errorMessage.toLowerCase().includes('already exists')) {
-        setErrors({ phone: 'Visitor with this phone number already exists' });
+        setErrors({ mobile_number: 'Visitor with this phone number already exists' });
       } else {
         setErrors({ general: errorMessage });
       }
@@ -305,77 +488,133 @@ const GateCheck = ({ onVisitorCountChange }) => {
     }
   };
 
+  const handleVisitorUpdate = (visitorId, newStatus, actionType) => {
+  console.log('Updating visitor:', visitorId, 'to status:', newStatus, 'action:', actionType);
+  
+  // Update visitors state
+  setVisitors(prev => prev.map(visitor => 
+    visitor.id === visitorId
+      ? { 
+          ...visitor, 
+          status: newStatus,
+          // Add timestamps based on action
+          ...(actionType === 'checkin' && { entry_time: new Date().toISOString() }),
+          ...(actionType === 'checkout' && { exit_time: new Date().toISOString() }),
+          ...(actionType === 'approve' && { approved_time: new Date().toISOString() }),
+          ...(actionType === 'reject' && { rejected_time: new Date().toISOString() })
+        }
+      : visitor
+  ));
+  
+  // Update recurring visitors state if needed
+  setRecurringVisitors(prev => prev.map(visitor => 
+    visitor.id === visitorId
+      ? { 
+          ...visitor, 
+          status: newStatus,
+          // Add timestamps based on action
+          ...(actionType === 'checkin' && { entry_time: new Date().toISOString() }),
+          ...(actionType === 'checkout' && { exit_time: new Date().toISOString() }),
+          ...(actionType === 'approve' && { approved_time: new Date().toISOString() }),
+          ...(actionType === 'reject' && { rejected_time: new Date().toISOString() })
+        }
+      : visitor
+  ));
+};
+
   // Update visitor status (check-in/check-out)
   const updateVisitorStatus = async (visitorId, newStatus) => {
     try {
-      const response = await api.visitors.updateStatus(visitorId, { status: newStatus });
-      if (response.data) {
+      console.log('Updating visitor status:', visitorId, newStatus);
+      const response = await api.visitors.update(visitorId, { status: newStatus });
+      console.log('Update status response:', response);
+      
+      if (response && response.data) {
         // Update local state
         setVisitors(prev => prev.map(visitor => 
-          visitor.id === visitorId 
+          visitor.id === visitorId
             ? { 
                 ...visitor, 
                 status: newStatus,
-                checkOutTime: newStatus === 'out' ? new Date().toLocaleString('en-GB', {
-                  day: '2-digit',
-                  month: '2-digit', 
-                  year: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                  hour12: true
-                }).replace(/\//g, '-') : visitor.checkOutTime
+                exit_time: newStatus === 'EXPIRED' ? new Date().toISOString() : visitor.exit_time,
+                is_inside: newStatus === 'APPROVED'
+              }
+            : visitor
+        ));
+        
+        setRecurringVisitors(prev => prev.map(visitor => 
+          visitor.id === visitorId
+            ? { 
+                ...visitor, 
+                status: newStatus,
+                exit_time: newStatus === 'EXPIRED' ? new Date().toISOString() : visitor.exit_time,
+                is_inside: newStatus === 'APPROVED'
               }
             : visitor
         ));
       }
     } catch (error) {
       console.error('Error updating visitor status:', error);
+      console.error('Error details:', error.response?.data || error.message);
       setErrors({ general: 'Failed to update visitor status' });
     }
   };
 
   const getStatusColor = (status) => {
-    return status === 'in' ? 'text-green-800 bg-green-100' : 'text-red-600 bg-red-100';
-  };
-
-  const getStatusDot = (status) => {
-    return status === 'in' ? 'bg-green-500' : 'bg-red-500';
-  };
-
-  const getTypeLabel = (type) => {
-    switch(type) {
-      case 'schedule': return 'Schedule';
-      case 'walkin': return 'Walk-in';
-      case 'visitor': return 'QR Visitor';
-      default: return 'Schedule';
+    switch(status) {
+      case 'APPROVED': return 'text-green-800 bg-green-100';
+      case 'PENDING': return 'text-yellow-800 bg-yellow-100';
+      case 'REJECTED': return 'text-red-800 bg-red-100';
+      case 'EXPIRED': return 'text-gray-800 bg-gray-100';
+      case 'CANCELLED': return 'text-orange-800 bg-orange-100';
+      case 'BLACKLISTED': return 'text-red-800 bg-red-200';
+      default: return 'text-gray-800 bg-gray-100';
     }
   };
 
-  // Calculate stats
-  const totalVisitors = visitors.length;
-  const checkInCount = visitors.filter(v => v.status === 'in').length;
-  const checkOutCount = visitors.filter(v => v.status === 'out').length;
-  const walkinCount = visitors.filter(v => v.type === 'walkin').length;
-  const scheduleCount = visitors.filter(v => v.type === 'schedule').length;
-  const qrVisitorCount = visitors.filter(v => v.type === 'visitor').length;
+  const getStatusDot = (status) => {
+    switch(status) {
+      case 'APPROVED': return 'bg-green-500';
+      case 'PENDING': return 'bg-yellow-500';
+      case 'REJECTED': return 'bg-red-500';
+      case 'EXPIRED': return 'bg-gray-500';
+      case 'CANCELLED': return 'bg-orange-500';
+      case 'BLACKLISTED': return 'bg-red-600';
+      default: return 'bg-gray-500';
+    }
+  };
 
-  // Export to Excel functionality
+  const getPassTypeLabel = (passType) => {
+    switch(passType) {
+      case 'ONE_TIME': return 'One Time';
+      case 'RECURRING': return 'Recurring';
+      case 'PERMANENT': return 'Permanent';
+      default: return passType;
+    }
+  };
+
+  const getCategoryLabel = (categoryValue) => {
+    const category = categories.find(cat => cat.value === categoryValue);
+    return category ? category.name : categoryValue;
+  };
+
   const exportToExcel = () => {
     const dataToExport = showRecurring ? recurringVisitors : visitors;
-    const headers = ['Name', 'Phone', 'Email', 'Status', 'Type', 'Check-in Time', 'Purpose', 'Host', 'Department', 'Company'];
+    const headers = ['Name', 'Phone', 'Email', 'Status', 'Pass Type', 'Category', 'Visiting Date', 'Purpose', 'Whom to Meet', 'Coming From', 'Vehicle Type'];
     const csvContent = [
       headers.join(','),
       ...dataToExport.map(visitor => [
-        `"${visitor.name || ''}"`,
-        `"${visitor.phone || ''}"`, 
-        `"${visitor.email || ''}"`,
-        `"${visitor.status || 'Active'}"`,
-        `"${getTypeLabel(visitor.type)}"`,
-        `"${visitor.checkInTime || visitor.createdAt || ''}"`,
-        `"${visitor.purpose || ''}"`,
-        `"${visitor.hostName || ''}"`,
-        `"${visitor.department || ''}"`,
-        `"${visitor.company || ''}"`
+        `"${visitor.visitor_name || ''}"`,
+        `"${visitor.mobile_number || ''}"`, 
+        `"${visitor.email_id || ''}"`,
+        `"${visitor.status || ''}"`,
+        `"${getPassTypeLabel(visitor.pass_type)}"`,
+        `"${getCategoryLabel(visitor.category)}"`,
+        `"${visitor.visiting_date || ''}"`,
+        `"${visitor.purpose_of_visit || ''}"`,
+        `"${visitor.whom_to_meet || ''}"`,
+        `"${visitor.coming_from || ''}"`,
+        `"${visitor.vehicle_type || ''}"`
       ].join(','))
     ].join('\n');
 
@@ -399,19 +638,21 @@ const GateCheck = ({ onVisitorCountChange }) => {
         formData.append('file', file);
         
         const response = await api.visitors.uploadExcel(formData);
-        if (response.data) {
+        if (response && response.data) {
           // Refresh visitors list
           fetchVisitors();
           setSuccessMessage('Visitors uploaded successfully!');
         }
       } catch (error) {
         console.error('Error uploading file:', error);
+        console.error('Error details:', error.response?.data || error.message);
         setErrors({ general: 'Failed to upload file. Please check the format and try again.' });
       }
       setShowExcelDropdown(false);
     }
   };
 
+  // Render method
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -427,16 +668,16 @@ const GateCheck = ({ onVisitorCountChange }) => {
     <div className="min-h-screen m-0 bg-gray-50">
       {/* Error/Success Messages */}
       {errors.general && (
-        <div className="p-4 mx-6 mt-4 border border-red-200 rounded-lg bg-red-50">
+        <div className="mx-6 mt-4 rounded-lg">
           <div className="flex items-center">
             <AlertCircle className="w-5 h-5 mr-2 text-red-500" />
             <span className="text-red-700">{errors.general}</span>
           </div>
         </div>
       )}
-      
+
       {successMessage && (
-        <div className="p-4 mx-6 mt-4 border border-green-200 rounded-lg bg-green-50">
+        <div className="mx-6 mt-4 rounded-lg">
           <div className="flex items-center">
             <CheckCircle className="w-5 h-5 mr-2 text-green-500" />
             <span className="text-green-700">{successMessage}</span>
@@ -444,658 +685,64 @@ const GateCheck = ({ onVisitorCountChange }) => {
         </div>
       )}
 
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="px-2 py-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <h1 className="flex items-center text-xl font-semibold text-gray-900">
-                <Users className="w-6 h-6 m-2 text-purple-800" />
-                {showRecurring ? 'Recurring Visitors' : 'Regular Visitors'}
-              </h1>
-              <button 
-                onClick={() => setShowRecurring(!showRecurring)}
-                className={`p-2 text-sm rounded-lg transition-colors ${
-                  showRecurring 
-                    ? 'text-purple-800 bg-white hover:bg-purple-100 border border-purple-800' 
-                    : 'text-purple-800 bg-white hover:bg-purple-100 border border-purple-800'
-                }`}
-              >
-                {showRecurring ? 'Show Regular Visitors' : 'Recurring Pass'}
-              </button>
-            </div>
-            
-            {/* Action Buttons */}
-            <div className="flex items-center space-x-3">
-              <button 
-                onClick={() => setShowAddModal(true)}
-                className="flex items-center p-2 text-xs text-purple-800 transition-colors bg-white border border-purple-800 rounded-lg hover:bg-purple-100"
-              >
-                <Plus className="w-4 h-4 text-purple-800" />
-                Add Visitor
-              </button>
-              
-              <div className="relative">
-                <button 
-                  onClick={() => setShowFilterDropdown(!showFilterDropdown)}
-                  className="flex items-center text-gray-700 transition-colors border border-gray-300 rounded-lg hover:bg-gray-50"
-                >
-                  <Filter className="w-4 h-4 m-2" />
-                  Filter
-                  <ChevronDown className="w-4 h-4 m-2" />
-                </button>
-                
-                {showFilterDropdown && (
-                  <div className="absolute right-0 z-10 w-48 mt-2 bg-white border border-gray-200 rounded-sm shadow-lg">
-                    <div className="p-2">
-                      {!showRecurring && (
-                        <div className="mb-2">
-                          <label className="block mb-1 text-xs font-medium text-gray-700">Status</label>
-                          <select
-                            value={filterStatus}
-                            onChange={(e) => setFilterStatus(e.target.value)}
-                            className="w-full p-2 text-sm border border-gray-300 rounded"
-                          >
-                            <option value="all">All ({totalVisitors})</option>
-                            <option value="in">Check-In ({checkInCount})</option>
-                            <option value="out">Check-Out ({checkOutCount})</option>
-                          </select>
-                        </div>
-                      )}
-                      
-                      <div className="mb-2">
-                        <label className="block mb-1 text-xs font-medium text-gray-700">Type</label>
-                        <select
-                          value={filterType}
-                          onChange={(e) => setFilterType(e.target.value)}
-                          className="w-full p-2 text-sm border border-gray-300 rounded"
-                        >
-                          <option value="all">All Types</option>
-                          <option value="walkin">Walk-in ({walkinCount})</option>
-                          <option value="schedule">Schedule ({scheduleCount})</option>
-                          <option value="visitor">QR Visitor ({qrVisitorCount})</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
+      {/* Header Component */}
+      <Header
+        showRecurring={showRecurring}
+        setShowRecurring={setShowRecurring}
+        setShowAddModal={setShowAddModal}
+        showFilterDropdown={showFilterDropdown}
+        setShowFilterDropdown={setShowFilterDropdown}
+        filterStatus={filterStatus}
+        setFilterStatus={setFilterStatus}
+        filterType={filterType}
+        setFilterType={setFilterType}
+        filterCategory={filterCategory}
+        setFilterCategory={setFilterCategory}
+        categories={categories}
+        showExcelDropdown={showExcelDropdown}
+        setShowExcelDropdown={setShowExcelDropdown}
+        handleFileUpload={handleFileUpload}
+        exportToExcel={exportToExcel}
+        totalVisitors={visitors.length}
+        approvedCount={visitors.filter(v => v.status === 'APPROVED').length}
+        pendingCount={visitors.filter(v => v.status === 'PENDING').length}
+        rejectedCount={visitors.filter(v => v.status === 'REJECTED').length}
+        oneTimeCount={visitors.filter(v => v.pass_type === 'ONE_TIME').length}
+        recurringCount={visitors.filter(v => v.pass_type === 'RECURRING').length}
+        permanentCount={visitors.filter(v => v.pass_type === 'PERMANENT').length}
+      />
 
-              {/* Excel Dropdown */}
-              <div className="relative">
-                <button 
-                  onClick={() => setShowExcelDropdown(!showExcelDropdown)}
-                  className="flex items-center text-gray-700 transition-colors border border-gray-300 rounded-lg hover:bg-gray-50"
-                >
-                  <FileText className="w-4 h-4 m-2"/>
-                  Excel
-                  <ChevronDown className="w-4 h-4 m-2"/>
-                </button>
-                
-                {showExcelDropdown && (
-                  <div className="absolute right-0 z-10 w-40 mt-2 bg-white border border-gray-200 rounded-sm shadow-lg">
-                    <div className="py-1">
-                      <label className="flex items-center px-4 py-2 text-sm text-gray-700 cursor-pointer hover:bg-gray-50">
-                        <Upload className="w-4 h-4 mr-2" />
-                        Upload Excel
-                        <input
-                          type="file"
-                          accept=".xlsx,.xls,.csv"
-                          onChange={handleFileUpload}
-                          className="hidden"
-                        />
-                      </label>
-                      <button
-                        onClick={exportToExcel}
-                        className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                      >
-                        <Download className="w-4 h-4 mr-2" />
-                        Download Excel
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
+      {/* SearchBar Component */}
+      <SearchBar searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
 
-              {/* Status Indicators */}
-              {!showRecurring && (
-                <div className="flex items-center space-x-4 text-sm">
-                  <div className="flex items-center space-x-1">
-                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                    <span className="text-gray-600">In</span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                    <span className="text-gray-600">Out</span>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
+      {/* VisitorTable Component */}
+      <VisitorTable
+        filteredVisitors={filteredVisitors}
+        showRecurring={showRecurring}
+        onVisitorUpdate={handleVisitorUpdate} // Changed from updateVisitorStatus
+        getStatusColor={getStatusColor}
+        getStatusDot={getStatusDot}
+        getPassTypeLabel={getPassTypeLabel}
+        getCategoryLabel={getCategoryLabel}
+        searchTerm={searchTerm}
+        filterStatus={filterStatus}
+        filterType={filterType}
+        filterCategory={filterCategory}
+      />
 
-      {/* Search Bar */}
-      <div className="px-6 py-4 bg-white border-b border-gray-200">
-        <div className="relative max-w-md">
-          <Search className="absolute w-5 h-5 text-gray-400 transform -translate-y-1/2 left-3 top-1/2" />
-          <input
-            type="text"
-            placeholder={`Search ${showRecurring ? 'recurring ' : ''}visitors...`}
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="h-10 p-2 pl-8 text-sm border border-gray-300 rounded-lg w-100 focus:ring-2 focus:ring-purple-800 focus:border-transparent"
-          />
-        </div>
-      </div>
-
-      {/* Visitors List */}
-      <div className="px-6 py-4">
-        {filteredVisitors.length === 0 ? (
-          <div className="p-8 text-center bg-white rounded-lg shadow-sm">
-            <Users className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-            <h3 className="mb-2 text-lg font-medium text-gray-900">
-              {showRecurring ? 'No recurring visitors found' : 'No visitors found'}
-            </h3>
-            <p className="text-gray-500">
-              {searchTerm || filterStatus !== 'all' || filterType !== 'all'
-                ? 'Try adjusting your search or filter criteria.'
-                : showRecurring 
-                ? 'No recurring visitors have been registered yet.'
-                : 'No visitors have been registered yet.'}
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {filteredVisitors.map((visitor) => (
-              <div key={visitor.id} className="flex items-center justify-between p-4 transition-shadow bg-white rounded-lg shadow-sm hover:shadow-md">
-                <div className="flex items-center space-x-4">
-                  <div className="relative">
-                    <div className="flex items-center justify-center w-12 h-12 bg-gray-200 rounded-full">
-                      <User className="w-6 h-6 text-gray-500" />
-                    </div>
-                    {!showRecurring && (
-                      <div className={`absolute -bottom-1 -right-1 w-4 h-4 ${getStatusDot(visitor.status)} rounded-full border-2 border-white`}></div>
-                    )}
-                  </div>
-                  
-                  <div>
-                    <h3 className="font-semibold text-gray-900">{visitor.name}</h3>
-                    <div className="flex items-center space-x-4 text-sm text-gray-500">
-                      <span className="flex items-center">
-                        <Phone className="w-3 h-3 mr-1" />
-                        {visitor.phone}
-                      </span>
-                      <span className="px-2 py-1 text-xs text-blue-800 bg-blue-100 rounded">
-                        {showRecurring ? 'Recurring' : getTypeLabel(visitor.type)}
-                      </span>
-                    </div>
-                    <div className="mt-1 text-sm text-gray-600">
-                      <span className="flex items-center">
-                        <Building2 className="w-3 h-3 mr-1" />
-                        {visitor.purpose} {visitor.hostName && `- ${visitor.hostName}`} {visitor.department && `(${visitor.department})`}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center space-x-6">
-                  <div className="text-sm">
-                    <div className="flex items-center text-gray-600">
-                      <Clock className="w-4 h-4 mr-1" />
-                      {visitor.checkInTime || visitor.createdAt}
-                    </div>
-                    {visitor.status === 'out' && visitor.checkOutTime && (
-                      <div className="flex items-center mt-1 text-gray-600">
-                        <Clock className="w-4 h-4 mr-1" />
-                        Out: {visitor.checkOutTime}
-                      </div>
-                    )}
-                  </div>
-
-                  {!showRecurring && (
-                    <div className="flex items-center space-x-2">
-                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(visitor.status)}`}>
-                        {visitor.status === 'in' ? 'In' : 'Out'}
-                      </span>
-                      
-                      <button
-                        onClick={() => updateVisitorStatus(visitor.id, visitor.status === 'in' ? 'out' : 'in')}
-                        className="px-3 py-1 text-xs text-purple-800 transition-colors bg-purple-100 rounded hover:bg-purple-200"
-                      >
-                        {visitor.status === 'in' ? 'Check Out' : 'Check In'}
-                      </button>
-                    </div>
-                  )}
-
-                  <button className="text-gray-400 hover:text-gray-600">
-                    <MoreVertical className="w-5 h-5" />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Add Visitor Modal */}
+      {/* VisitorForm Component */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          {/* Backdrop */}
-          <div 
-            className="absolute inset-0 bg-black bg-opacity-50"
-            onClick={() => setShowAddModal(false)}
-          />
-          
-          {/* Modal */}
-          <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white rounded-lg shadow-xl mx-4">
-            {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <div>
-                <h2 className="text-lg font-semibold text-purple-800">Add Visitor</h2>
-                <p className="text-sm text-gray-500">Fill in visitor details</p>
-              </div>
-              <button
-                onClick={() => {
-                  setShowAddModal(false);
-                  resetForm();
-                }}
-                className="p-2 text-purple-800 rounded-full hover:text-purple-600 hover:bg-purple-100"
-                disabled={submitLoading}
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Success Message in Modal */}
-            {successMessage && (
-              <div className="p-3 mx-6 mt-4 border border-green-200 rounded-lg bg-green-50">
-                <div className="flex items-center">
-                  <CheckCircle className="w-4 h-4 mr-2 text-green-500" />
-                  <span className="text-sm text-green-700">{successMessage}</span>
-                </div>
-              </div>
-            )}
-
-            {/* Form */}
-            <form onSubmit={handleSubmit} className="p-6">
-              {/* General Error */}
-              {errors.general && (
-                <div className="p-3 mb-4 border border-red-200 rounded-lg bg-red-50">
-                  <div className="flex items-center">
-                    <AlertCircle className="w-4 h-4 mr-2 text-red-500" />
-                    <span className="text-sm text-red-700">{errors.general}</span>
-                  </div>
-                </div>
-              )}
-
-              {/* Visitor Type Selection */}
-              <div className="mb-6">
-                <label className="block mb-2 text-sm font-medium text-gray-700">
-                  Visitor Type <span className="text-red-500">*</span>
-                </label>
-                <div className="flex space-x-4">
-                  <button
-                    type="button"
-                    onClick={() => setFormData(prev => ({ ...prev, recurringType: 'onetime' }))}
-                    className={`flex-1 p-3 text-sm border rounded-lg transition-colors ${
-                      formData.recurringType === 'onetime'
-                        ? 'bg-purple-50 border-purple-800 text-purple-800'
-                        : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    <div className="font-medium">One-time Visit</div>
-                    <div className="text-xs text-gray-500">Single day visitor</div>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setFormData(prev => ({ ...prev, recurringType: 'recurring' }))}
-                    className={`flex-1 p-3 text-sm border rounded-lg transition-colors ${
-                      formData.recurringType === 'recurring'
-                        ? 'bg-purple-50 border-purple-800 text-purple-800'
-                        : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    <div className="font-medium">Recurring Pass</div>
-                    <div className="text-xs text-gray-500">Multiple visits</div>
-                  </button>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                {/* Personal Information */}
-                <div className="md:col-span-2">
-                  <h3 className="pb-2 mb-3 text-sm font-medium text-gray-900 border-b">Personal Information</h3>
-                </div>
-
-                {/* Name */}
-                <div>
-                  <label className="block mb-1 text-sm font-medium text-gray-700">
-                    Full Name <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleInputChange}
-                    className={`w-full p-2 text-sm border rounded-lg focus:ring-2 focus:ring-purple-800 focus:border-transparent ${
-                      errors.name ? 'border-red-500 bg-red-50' : 'border-gray-300'
-                    }`}
-                    placeholder="Enter visitor's full name"
-                    disabled={submitLoading}
-                  />
-                  {errors.name && <p className="mt-1 text-xs text-red-600">{errors.name}</p>}
-                </div>
-
-                {/* Phone */}
-                <div>
-                  <label className="block mb-1 text-sm font-medium text-gray-700">
-                    Mobile Number <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="tel"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleInputChange}
-                    className={`w-full p-2 text-sm border rounded-lg focus:ring-2 focus:ring-purple-800 focus:border-transparent ${
-                      errors.phone ? 'border-red-500 bg-red-50' : 'border-gray-300'
-                    }`}
-                    placeholder="Enter 10-digit mobile number"
-                    maxLength="10"
-                    disabled={submitLoading}
-                  />
-                  {errors.phone && <p className="mt-1 text-xs text-red-600">{errors.phone}</p>}
-                </div>
-
-                {/* Email */}
-                <div>
-                  <label className="block mb-1 text-sm font-medium text-gray-700">Email Address</label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    className={`w-full p-2 text-sm border rounded-lg focus:ring-2 focus:ring-purple-800 focus:border-transparent ${
-                      errors.email ? 'border-red-500 bg-red-50' : 'border-gray-300'
-                    }`}
-                    placeholder="Enter email address (optional)"
-                    disabled={submitLoading}
-                  />
-                  {errors.email && <p className="mt-1 text-xs text-red-600">{errors.email}</p>}
-                </div>
-
-                {/* Gender */}
-                <div>
-                  <label className="block mb-1 text-sm font-medium text-gray-700">Gender</label>
-                  <select
-                    name="gender"
-                    value={formData.gender}
-                    onChange={handleInputChange}
-                    className="w-full p-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-800 focus:border-transparent"
-                    disabled={submitLoading}
-                  >
-                    <option value="">Select Gender</option>
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </div>
-
-                {/* Visit Information */}
-                <div className="mt-4 md:col-span-2">
-                  <h3 className="pb-2 mb-3 text-sm font-medium text-gray-900 border-b">Visit Information</h3>
-                </div>
-
-                {/* Purpose */}
-                <div className="md:col-span-2">
-                  <label className="block mb-1 text-sm font-medium text-gray-700">
-                    Purpose of Visit <span className="text-red-500">*</span>
-                  </label>
-                  <textarea
-                    name="purpose"
-                    value={formData.purpose}
-                    onChange={handleInputChange}
-                    rows={2}
-                    className={`w-full p-2 text-sm border rounded-lg focus:ring-2 focus:ring-purple-800 focus:border-transparent ${
-                      errors.purpose ? 'border-red-500 bg-red-50' : 'border-gray-300'
-                    }`}
-                    placeholder="Enter purpose of visit"
-                    disabled={submitLoading}
-                  />
-                  {errors.purpose && <p className="mt-1 text-xs text-red-600">{errors.purpose}</p>}
-                </div>
-
-                {/* Host Name */}
-                <div>
-                  <label className="block mb-1 text-sm font-medium text-gray-700">Host Name</label>
-                  <input
-                    type="text"
-                    name="hostName"
-                    value={formData.hostName}
-                    onChange={handleInputChange}
-                    className="w-full p-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-800 focus:border-transparent"
-                    placeholder="Enter host name"
-                    disabled={submitLoading}
-                  />
-                </div>
-
-                {/* Department */}
-                <div>
-                  <label className="block mb-1 text-sm font-medium text-gray-700">Department</label>
-                  <input
-                    type="text"
-                    name="department"
-                    value={formData.department}
-                    onChange={handleInputChange}
-                    className="w-full p-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-800 focus:border-transparent"
-                    placeholder="Enter department"
-                    disabled={submitLoading}
-                  />
-                </div>
-
-                {/* Company */}
-                <div>
-                  <label className="block mb-1 text-sm font-medium text-gray-700">Company</label>
-                  <input
-                    type="text"
-                    name="company"
-                    value={formData.company}
-                    onChange={handleInputChange}
-                    className="w-full p-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-800 focus:border-transparent"
-                    placeholder="Enter company name"
-                    disabled={submitLoading}
-                  />
-                </div>
-
-                {/* Address */}
-                <div>
-                  <label className="block mb-1 text-sm font-medium text-gray-700">Address</label>
-                  <input
-                    type="text"
-                    name="address"
-                    value={formData.address}
-                    onChange={handleInputChange}
-                    className="w-full p-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-800 focus:border-transparent"
-                    placeholder="Enter address"
-                    disabled={submitLoading}
-                  />
-                </div>
-
-                {/* Visit Details */}
-                <div className="mt-4 md:col-span-2">
-                  <h3 className="pb-2 mb-3 text-sm font-medium text-gray-900 border-b">Visit Details</h3>
-                </div>
-
-                {/* Visiting Date */}
-                <div>
-                  <label className="block mb-1 text-sm font-medium text-gray-700">
-                    Visiting Date <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="date"
-                    name="visitingDate"
-                    value={formData.visitingDate}
-                    onChange={handleInputChange}
-                    min={new Date().toISOString().split('T')[0]}
-                    className={`w-full p-2 text-sm border rounded-lg focus:ring-2 focus:ring-purple-800 focus:border-transparent ${
-                      errors.visitingDate ? 'border-red-500 bg-red-50' : 'border-gray-300'
-                    }`}
-                    disabled={submitLoading}
-                  />
-                  {errors.visitingDate && <p className="mt-1 text-xs text-red-600">{errors.visitingDate}</p>}
-                </div>
-
-                {/* Visiting Time */}
-                <div>
-                  <label className="block mb-1 text-sm font-medium text-gray-700">Visiting Time</label>
-                  <input
-                    type="time"
-                    name="visitingTime"
-                    value={formData.visitingTime}
-                    onChange={handleInputChange}
-                    className="w-full p-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-800 focus:border-transparent"
-                    disabled={submitLoading}
-                  />
-                </div>
-
-                {/* Allowing Hours */}
-                <div>
-                  <label className="block mb-1 text-sm font-medium text-gray-700">Duration (Hours)</label>
-                  <select
-                    name="allowingHours"
-                    value={formData.allowingHours}
-                    onChange={handleInputChange}
-                    className="w-full p-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-800 focus:border-transparent"
-                    disabled={submitLoading}
-                  >
-                    <option value="1">1 Hour</option>
-                    <option value="2">2 Hours</option>
-                    <option value="3">3 Hours</option>
-                    <option value="4">4 Hours</option>
-                    <option value="6">6 Hours</option>
-                    <option value="8">8 Hours</option>
-                    <option value="12">12 Hours</option>
-                    <option value="24">Full Day</option>
-                  </select>
-                </div>
-
-                {/* Category */}
-                <div>
-                  <label className="block mb-1 text-sm font-medium text-gray-700">Category</label>
-                  <select
-                    name="category"
-                    value={formData.category}
-                    onChange={handleInputChange}
-                    className="w-full p-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-800 focus:border-transparent"
-                    disabled={submitLoading}
-                  >
-                    <option value="NA">NA</option>
-                    <option value="VIP">VIP</option>
-                    <option value="Business">Business</option>
-                    <option value="Personal">Personal</option>
-                    <option value="Delivery">Delivery</option>
-                    <option value="Maintenance">Maintenance</option>
-                  </select>
-                </div>
-
-                {/* Additional Information */}
-                <div className="mt-4 md:col-span-2">
-                  <h3 className="pb-2 mb-3 text-sm font-medium text-gray-900 border-b">Additional Information</h3>
-                </div>
-
-                {/* Belongings */}
-                <div className="md:col-span-2">
-                  <label className="block mb-1 text-sm font-medium text-gray-700">Belongings</label>
-                  <textarea
-                    name="belongings"
-                    value={formData.belongings}
-                    onChange={handleInputChange}
-                    rows={2}
-                    className="w-full p-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-800 focus:border-transparent"
-                    placeholder="List any belongings (laptop, bags, etc.)"
-                    disabled={submitLoading}
-                  />
-                </div>
-
-                {/* Vehicle Type */}
-                <div>
-                  <label className="block mb-1 text-sm font-medium text-gray-700">Vehicle Type</label>
-                  <select
-                    name="vehicleType"
-                    value={formData.vehicleType}
-                    onChange={handleInputChange}
-                    className="w-full p-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-800 focus:border-transparent"
-                    disabled={submitLoading}
-                  >
-                    <option value="">Select Vehicle Type</option>
-                    <option value="Car">Car</option>
-                    <option value="Bike">Bike</option>
-                    <option value="Auto">Auto</option>
-                    <option value="Taxi">Taxi</option>
-                    <option value="Bus">Bus</option>
-                    <option value="Walking">Walking</option>
-                  </select>
-                </div>
-
-                {/* Vehicle Number */}
-                <div>
-                  <label className="block mb-1 text-sm font-medium text-gray-700">Vehicle Number</label>
-                  <input
-                    type="text"
-                    name="vehicleNo"
-                    value={formData.vehicleNo}
-                    onChange={handleInputChange}
-                    className="w-full p-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-800 focus:border-transparent"
-                    placeholder="Enter vehicle number"
-                    disabled={submitLoading}
-                  />
-                </div>
-              </div>
-
-              {/* Form Actions */}
-              <div className="flex items-center justify-end pt-4 mt-6 space-x-3 border-t border-gray-200">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowAddModal(false);
-                    resetForm();
-                  }}
-                  className="px-4 py-2 text-sm text-gray-700 transition-colors bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
-                  disabled={submitLoading}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitLoading}
-                  className="flex items-center px-4 py-2 text-sm text-white transition-colors bg-purple-800 rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {submitLoading && (
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  )}
-                  {submitLoading 
-                    ? `Adding ${formData.recurringType === 'recurring' ? 'Recurring' : ''} Visitor...` 
-                    : `Add ${formData.recurringType === 'recurring' ? 'Recurring' : ''} Visitor`
-                  }
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Click outside handlers */}
-      {showFilterDropdown && (
-        <div
-          className="fixed inset-0 z-5"
-          onClick={() => setShowFilterDropdown(false)}
-        />
-      )}
-      
-      {showExcelDropdown && (
-        <div
-          className="fixed inset-0 z-5"
-          onClick={() => setShowExcelDropdown(false)}
+        <VisitorForm
+          formData={formData}
+          handleInputChange={handleInputChange}
+          handleSubmit={handleSubmit}
+          setShowAddModal={setShowAddModal}
+          resetForm={resetForm}
+          errors={errors}
+          submitLoading={submitLoading}
+          categories={categories}
+          categoriesLoading={categoriesLoading}
+          user={user} // Pass userCompany
         />
       )}
     </div>

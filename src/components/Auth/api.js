@@ -1,5 +1,7 @@
 // services/api.js
 import { axiosInstance } from '../utils/axiosInstance';
+import { useParams } from 'react-router-dom';
+
 
 // Enhanced axios instance with interceptors
 const setupAxiosInterceptors = (authService) => {
@@ -67,9 +69,9 @@ export const api = {
     forgotPassword: (identifier) => axiosInstance.post('/login/otp-request/', identifier ),
     verifyOtp: (otpData) => axiosInstance.post('/login/verify-otp/', otpData),
     newPasswod: (newPasswordData) => axiosInstance.post('/login/set-new-password/', newPasswordData),
-    resetPassword: (resetData) => axiosInstance.post('/auth/reset-password', resetData),
+    resetPassword: (resetData) => axiosInstance.post('/login/reset-password/', resetData),
     changePassword: (passwordData) => axiosInstance.post('/login/reset-password/', passwordData),
-    updateProfile: (profileData) => axiosInstance.put('/auth/profile', profileData),
+    updateProfile: (profileData) => axiosInstance.put('/auth/profile/', profileData),
     // validateSession: () => axiosInstance.get('/auth/validate'),
     setup2FA: () => axiosInstance.post('/auth/2fa/setup'),
     verify2FA: (data) => axiosInstance.post('/auth/2fa/verify', data),
@@ -77,36 +79,49 @@ export const api = {
 
   // User endpoints
   user: {
-    getProfile: () => axiosInstance.get('/user/profile'),
-    updateProfile: (data) => axiosInstance.put('/user/profile', data),
-    deleteAccount: () => axiosInstance.delete('/user/account'),
+    getByOrganization: (organizationId) => axiosInstance.get(`/user/create-user/?company_id=${organizationId}`),
+    getProfile: () => axiosInstance.get('/user/profile/'),
+    updateProfile: (data) => axiosInstance.put('/user/profile/', data),
+    deleteAccount: () => axiosInstance.delete('/user/account/'),
+  },
+  visitors:{
+    create: (visitorData) => axiosInstance.post('/visitors/visitors/', visitorData),
+    getAll: (params) => axiosInstance.get('/visitors/visitors/', { params }),
+    update: (visitorId, visitorData) => axiosInstance.put(`/visitors/${visitorId}/`, visitorData),
+    delete: (visitorId) => axiosInstance.delete(`/visitors/${visitorId}/`),
+    getById: (visitorId) => axiosInstance.get(`/visitors/${visitorId}/`),
+    category: () => axiosInstance.get('/visitors/categories/'),
+    approve: (visitorId) => axiosInstance.post(`/visitors/visitors/${visitorId}/approval/`,{ action: 'approve' }),
+    reject: (visitorId) => axiosInstance.post(`/visitors/${visitorId}/reject/`, { action: 'reject' }),
+
   },
   // Add this to your existing api object in services/api.js
 
   // Organization endpoints - ADD THESE TO YOUR EXISTING API OBJECT
   organization: {
     // Get all organizations
-    getAll: () => axiosInstance.get('/organizations'),
+    getAll: () => axiosInstance.get('/user/company/'),
         // Get organization by ID
-    getById: (id) => axiosInstance.get(`/organizations/${id}`),
+    getById: (id) => axiosInstance.get(`/user/company/${id}/`),
         // Create new organization
-    create: (organizationData) => axiosInstance.post('/organizations', organizationData),
+    create: (organizationData) => axiosInstance.post('/user/company/', organizationData),
         // Update organization
-    update: (id, organizationData) => axiosInstance.put(`/organizations/${id}`, organizationData),
+    companyId: (id) => axiosInstance.get(`/user/company/${id}/`),
+    update: (id, organizationData) => axiosInstance.put(`/user/company/${id}/`, organizationData),
         // Delete organization
-    delete: (id) => axiosInstance.delete(`/organizations/${id}`),
+    delete: (id) => axiosInstance.delete(`/user/company/${id}/`),
         // Check if organization exists (name or email)
-    checkExists: (checkData) => axiosInstance.post('/organizations/check-exists', checkData),
+    checkExists: (id, checkData) => axiosInstance.post(`/user/company/${id}`, checkData),
         // Add user to organization
-    addUser: (userData) => axiosInstance.post('/organizations/users', userData),
+    addUser: (userData) => axiosInstance.post('/user/create-user/', userData),
         // Get users for organization
-    getUsers: (organizationId) => axiosInstance.get(`/organizations/${organizationId}/users`),
+    getUsers: (organizationId) => axiosInstance.get(`/user/create-user/`,organizationId),
         // Update user in organization
-    updateUser: (organizationId, userId, userData) => 
-      axiosInstance.put(`/organizations/${organizationId}/users/${userId}`, userData),
+    updateUser: ( userId, userData) => 
+      axiosInstance.put(`/user/create-user/${userId}/`, userData),
         // Remove user from organization
-    removeUser: (organizationId, userId) => 
-      axiosInstance.delete(`/organizations/${organizationId}/users/${userId}`),
+    deleteUser: (userId) => 
+      axiosInstance.delete(`/user/create-user/${userId}/`),
         // Get organization statistics
     getStats: (organizationId) => axiosInstance.get(`/organizations/${organizationId}/stats`),
         // Search organizations

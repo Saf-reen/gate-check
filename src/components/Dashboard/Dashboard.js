@@ -4,11 +4,12 @@ import Navbar from '../Common/Navbar';
 import { Shield, FileText, User, Users, MapPin, UserCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-const Dashboard = ({ user, onLogout, totalVisitors = 0 }) => {
+const Dashboard = ({ user, onLogout, totalVisitors = 0, totalVendors= 0 }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
   const navigate = useNavigate();
   console.log('Dashboard totalVisitors:', totalVisitors);
+  console.log('Dashboard totalVendors:', totalVendors);
 
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
@@ -21,9 +22,21 @@ const Dashboard = ({ user, onLogout, totalVisitors = 0 }) => {
     }
   };
 
-  // Add navigation handler for cards
+  // Add navigation handler for cards with debugging
   const handleCardNavigation = (route) => {
+    console.log('Navigating to:', route); // Add this for debugging
     navigate(route);
+  };
+
+  // Separate handlers for better debugging
+  const handleVisitorsNavigation = () => {
+    console.log('Visitors card clicked - navigating to /visitors');
+    navigate('/visitors');
+  };
+
+  const handleVendorsNavigation = () => {
+    console.log('Vendors card clicked - navigating to /vendors');
+    navigate('/vendors');
   };
 
   const renderContent = () => {
@@ -79,7 +92,10 @@ const Dashboard = ({ user, onLogout, totalVisitors = 0 }) => {
             </div>
 
             <div className="grid grid-cols-1 gap-6 mt-6 md:grid-cols-7">
-              <div className="p-6 bg-transparent border-0 rounded-md">
+              <div
+                onClick={handleVisitorsNavigation}
+                className="p-6 transition-colors duration-200 bg-transparent border-0 rounded-md cursor-pointer hover:bg-gray-50"
+              >
                 <div className="flex flex-col items-center">
                   <div className="flex items-center justify-center w-10 h-10 mb-2 bg-white border border-purple-800 rounded-full">
                     <Users className="w-4 h-4 text-purple-800" />
@@ -89,12 +105,15 @@ const Dashboard = ({ user, onLogout, totalVisitors = 0 }) => {
                 </div>
               </div>
 
-              <div className="p-6 bg-transparent border-0 rounded-md">
+              <div 
+                onClick={handleVendorsNavigation}
+                className="p-6 transition-colors duration-200 bg-transparent border-0 rounded-md cursor-pointer hover:bg-gray-50"
+              >
                 <div className="flex flex-col items-center">
                   <div className="flex items-center justify-center w-10 h-10 mb-2 bg-white border border-purple-800 rounded-full">
                     <Users className="w-4 h-4 text-purple-800" />
                   </div>
-                  <p className="text-2xl font-bold text-gray-900">0</p>
+                  <p className="text-2xl font-bold text-gray-900">{totalVendors}</p>
                   <h3 className="font-medium text-gray-800 text-md">Vendors</h3>
                 </div>
               </div>

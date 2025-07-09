@@ -1,0 +1,170 @@
+[1mdiff --git a/src/App.js b/src/App.js[m
+[1mindex 3896a09..195adfc 100644[m
+[1m--- a/src/App.js[m
+[1m+++ b/src/App.js[m
+[36m@@ -10,6 +10,8 @@[m [mimport ForgotPassword from './components/LoginForm/ForgotPassword';[m
+ import ProfilePage from './components/ProfilePage/ProfilePage';[m
+ import UserManagement from './components/Users/UserManagement';[m
+ import Reports from './components/Reports/Reports'[m
+[32m+[m[32mimport VisitorsPage from './components/GateCheck/VisitorsPage';[m
+[32m+[m[32mimport VendorsPage from './components/GateCheck/VendorsPage';[m
+ [m
+ // Configuration for demo/production mode[m
+ const DEMO_MODE = true; // Set to false to enable full authentication[m
+[36m@@ -37,13 +39,48 @@[m [mconst LoadingSpinner = () => ([m
+ function App() {[m
+   // State management[m
+   const [visitors, setVisitors] = useState([]);[m
+[32m+[m[32m  const [vendors, setVendors] = useState([]);[m
+[32m+[m[32m  const [others, setOthers] = useState([]);[m
+   const [isAuthenticated, setIsAuthenticated] = useState(false);[m
+   const [userProfile, setUserProfile] = useState(null);[m
+   const [loading, setLoading] = useState(false);[m
+ [m
+   // Calculate total visitors count[m
+   const totalVisitors = visitors.length;[m
+[32m+[m[32m  const totalVendors = vendors.length;[m
+[32m+[m[32m  const totalOthers = others.length;[m
+[32m+[m[32m  const grandTotal = totalVisitors + totalVendors + totalOthers;[m
+ [m
+[32m+[m[41m    [m
+[32m+[m[32m  const handleGateCheckUpdate = (type, data) => {[m
+[32m+[m[32m    const newEntry = {[m
+[32m+[m[32m      id: Date.now(),[m
+[32m+[m[32m      ...data,[m
+[32m+[m[32m      timestamp: new Date().toISOString(),[m
+[32m+[m[32m      type: type[m
+[32m+[m[32m    };[m
+[32m+[m
+[32m+[m[32m    switch(type.toLowerCase()) {[m
+[32m+[m[32m      case 'visitor':[m
+[32m+[m[32m        setVisitors(prev => [...prev, newEntry]);[m
+[32m+[m[32m        break;[m
+[32m+[m[32m      case 'vendor':[m
+[32m+[m[32m        setVendors(prev => [...prev, newEntry]);[m
+[32m+[m[32m        break;[m
+[32m+[m[32m      case 'other':[m
+[32m+[m[32m        setOthers(prev => [...prev, newEntry]);[m
+[32m+[m[32m        break;[m
+[32m+[m[32m      default:[m
+[32m+[m[32m        console.warn('Unknown entry type:', type);[m
+[32m+[m[32m    }[m
+[32m+[m[32m  };[m
+[32m+[m[32m  const getCounts = () => ({[m
+[32m+[m[32m    visitors: totalVisitors,[m
+[32m+[m[32m    vendors: totalVendors,[m
+[32m+[m[32m    others: totalOthers,[m
+[32m+[m[32m    total: grandTotal[m
+[32m+[m[32m  });[m
+[32m+[m[41m  [m
+   // Handle login with flexible validation (accepts any credentials)[m
+   const handleLogin = async (userData, token, captchaValue) => {[m
+     try {[m
+[36m@@ -98,6 +135,7 @@[m [mfunction App() {[m
+       setIsAuthenticated(false);[m
+       setUserProfile(null);[m
+       setVisitors([]);[m
+[32m+[m[32m      setVendors([]);[m
+       [m
+       console.log('Logout successful');[m
+     } catch (error) {[m
+[36m@@ -139,7 +177,19 @@[m [mfunction App() {[m
+   if (loading) {[m
+     return <LoadingSpinner />;[m
+   }[m
+[31m-[m
+[32m+[m[32m  console.log({[m
+[32m+[m[32m    Sidebar,[m
+[32m+[m[32m    Dashboard,[m
+[32m+[m[32m    GateCheck,[m
+[32m+[m[32m    Organization,[m
+[32m+[m[32m    Navbar,[m
+[32m+[m[32m    LoginForm,[m
+[32m+[m[32m    ForgotPassword,[m
+[32m+[m[32m    ProfilePage,[m
+[32m+[m[32m    UserManagement,[m
+[32m+[m[32m    Reports,[m
+[32m+[m[32m    VisitorsPage[m
+[32m+[m[32m  });[m
+   return ([m
+     <div className="h-screen bg-gray-50">[m
+       <Routes>[m
+[36m@@ -176,7 +226,7 @@[m [mfunction App() {[m
+           path="/*"[m
+           element={[m
+             <ProtectedRoute isAuthenticated={isAuthenticated}>[m
+[31m-              <div className="flex min-h-screen">[m
+[32m+[m[32m              <div className="flex min-h-screen ">[m
+                 <Sidebar />[m
+                 <main className="flex flex-col flex-1">[m
+                   <Navbar [m
+[36m@@ -194,7 +244,12 @@[m [mfunction App() {[m
+                         element={[m
+                           <Dashboard [m
+                             visitors={visitors}[m
+[32m+[m[32m                            vendors={vendors}[m
+[32m+[m[32m                            others={others}[m
+                             totalVisitors={totalVisitors}[m
+[32m+[m[32m                            totalVendors={totalVendors}[m
+[32m+[m[32m                            totalOthers={totalOthers}[m
+[32m+[m[32m                            grandTotal={grandTotal}[m
+                             user={userProfile}[m
+                             onLogout={handleLogout}[m
+                           />[m
+[36m@@ -205,12 +260,27 @@[m [mfunction App() {[m
+                         element={[m
+                           <GateCheck [m
+                             visitors={visitors}[m
+[32m+[m[32m                            vendors={vendors}[m
+[32m+[m[32m                            others={others}[m
+                             setVisitors={setVisitors}[m
+[32m+[m[32m                            setVendors={setVendors}[m
+[32m+[m[32m                            setOthers={setOthers}[m
+[32m+[m[32m                            onGateCheckUpdate={handleGateCheckUpdate}[m
+                             totalVisitors={totalVisitors}[m
+[32m+[m[32m                            totalVendors={totalVendors}[m
+[32m+[m[32m                            totalOthers={totalOthers}[m
+[32m+[m[32m                            getCounts={getCounts}[m
+                             userProfile={userProfile}[m
+                           />[m
+                         } [m
+                       />[m
+[32m+[m[32m                      <Route path="/visitors" element={<VisitorsPage[m[41m [m
+[32m+[m[32m                        totalVisitors={totalVisitors}[m
+[32m+[m[32m                        visitors={visitors}/>} />[m
+[32m+[m[41m                        [m
+[32m+[m[32m                      <Route path="/vendors" element={<VendorsPage[m[41m [m
+[32m+[m[32m                        totalVendors={totalVendors}[m
+[32m+[m[32m                        vendors={vendors}/>} />[m
+                       <Route [m
+                         path="/reports" [m
+                         element={[m
+[1mdiff --git a/src/components/Auth/api.js b/src/components/Auth/api.js[m
+[1mindex 3f3cff0..13e7a77 100644[m
+[1m--- a/src/components/Auth/api.js[m
+[1m+++ b/src/components/Auth/api.js[m
+[36m@@ -67,7 +67,7 @@[m [mexport const api = {[m
+     forgotPassword: (identifier) => axiosInstance.post('/login/otp-request/', identifier ),[m
+     verifyOtp: (otpData) => axiosInstance.post('/login/verify-otp/', otpData),[m
+     newPasswod: (newPasswordData) => axiosInstance.post('/login/set-new-password/', newPasswordData),[m
+[31m-    resetPassword: (resetData) => axiosInstance.post('/auth/reset-password', resetData),[m
+[32m+[m[32m    // resetPassword: (resetData) => axiosInstance.post('/auth/reset-password', resetData),[m
+     changePassword: (passwordData) => axiosInstance.post('/login/reset-password/', passwordData),[m
+     updateProfile: (profileData) => axiosInstance.put('/auth/profile', profileData),[m
+     // validateSession: () => axiosInstance.get('/auth/validate'),[m
+[36m@@ -76,7 +76,8 @@[m [mexport const api = {[m
+   },[m
+ [m
+   // User endpoints[m
+[31m-  user: {[m
+[32m+[m[32m  users: {[m
+[32m+[m[32m    getByOrganization: () => axiosInstance.get(`/user/create-user/`),[m
+     getProfile: () => axiosInstance.get('/user/profile'),[m
+     updateProfile: (data) => axiosInstance.put('/user/profile', data),[m
+     deleteAccount: () => axiosInstance.delete('/user/account'),[m
+[36m@@ -86,35 +87,54 @@[m [mexport const api = {[m
+   // Organization endpoints - ADD THESE TO YOUR EXISTING API OBJECT[m
+   organization: {[m
+     // Get all organizations[m
+[31m-    getAll: () => axiosInstance.get('/organizations'),[m
+[32m+[m[32m    getAll: () => axiosInstance

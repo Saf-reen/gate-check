@@ -1,0 +1,17 @@
+[1mdiff --git a/src/App.js b/src/App.js[m
+[1mindex 3896a09..419234b 100644[m
+[1m--- a/src/App.js[m
+[1m+++ b/src/App.js[m
+[36m@@ -238,10 +238,10 @@[m [mfunction App() {[m
+                           />[m
+                         } [m
+                       />[m
+[31m-                      <Route [m
+[32m+[m[32m                      {/* <Route[m[41m [m
+                         path="/user" [m
+                         element={<UserManagement />} [m
+[31m-                      />[m
+[32m+[m[32m                      /> */}[m
+                       [m
+                       {/* Case-insensitive route aliases */}[m
+                       <Route path="/Dashboard" element={<Navigate to="/dashboard" replace />} />[m

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, use } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   User, 
@@ -9,7 +9,7 @@ import {
   Edit2, 
   Eye, 
   EyeOff, 
-  Save, 
+  Save,  
   X, 
   Lock,
   LogOut,
@@ -20,7 +20,7 @@ import {
 import authService from '../Auth/AuthService';
 import { api } from '../Auth/api';
 
-const Profile = ({ user, onLogout, onProfileUpdate }) => {
+const Profile = ({ user: propUser, onLogout, onProfileUpdate }) => {
   const navigate = useNavigate();
   const [isEditingPassword, setIsEditingPassword] = useState(false);
   const [isEditingAlias, setIsEditingAlias] = useState(false);
@@ -35,6 +35,8 @@ const Profile = ({ user, onLogout, onProfileUpdate }) => {
   const [sessionWarning, setSessionWarning] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
+  const [userData, setUserData] = useState(null);
+  const [isLoadingUserData, setIsLoadingUserData] = useState(false);
 
   // Helper function to display field value or "No data found for this field"
   const getFieldValue = (value, fieldName) => {
@@ -46,7 +48,31 @@ const Profile = ({ user, onLogout, onProfileUpdate }) => {
 
   // Helper function to get display value with fallback
   const getDisplayValue = (value) => {
-    return value && value.trim() !== '' ? value : '';
+  // Handle null, undefined, or empty values
+  if (value == null) return '';
+  
+  // Convert to string first, then trim
+  const stringValue = String(value);
+  
+  // Return empty string if it's just whitespace, otherwise return trimmed value
+  return stringValue.trim() !== '' ? stringValue.trim() : '';
+};
+
+// Alternative more explicit version:
+const getDisplayValueAlternative = (value) => {
+  // Check if value exists and is not null/undefined
+  if (!value && value !== 0) return '';
+  
+  // Convert to string safely
+  const stringValue = typeof value === 'string' ? value : String(value);
+  
+  // Return trimmed value or empty string
+  return stringValue.trim();
+};
+
+  // Get current user data (from prop or fetched data)
+  const getCurrentUser = () => {
+    return userData || propUser || {};
   };
 
   // Form states - using actual user data
@@ -54,24 +80,24 @@ const Profile = ({ user, onLogout, onProfileUpdate }) => {
     currentPassword: '',
     newPassword: '',
     confirmPassword: '',
-    aliasName: getDisplayValue(user?.aliasName || user?.alias),
-    email: getDisplayValue(user?.email),
-    mobile: getDisplayValue(user?.mobile || user?.phone)
+    aliasName: '',
+    email: '',
+    mobile: ''
   });
 
   // Profile data from logged in user
   const [profileData, setProfileData] = useState({
-    companyName: getDisplayValue(user?.companyName || user?.company || user?.organization),
-    userName: getDisplayValue(user?.name || user?.userName || user?.username),
-    userId: getDisplayValue(user?.userId || user?.id || user?.userIdAlias),
-    email: getDisplayValue(user?.email),
-    mobile: getDisplayValue(user?.mobile || user?.phone),
-    aliasName: getDisplayValue(user?.aliasName || user?.alias),
-    blockBuilding: getDisplayValue(user?.blockBuilding || user?.building),
-    floor: getDisplayValue(user?.floor),
-    address: getDisplayValue(user?.address),
-    location: getDisplayValue(user?.location || user?.city),
-    pinCode: getDisplayValue(user?.pinCode || user?.zipCode || user?.postalCode)
+    companyName: '',
+    userName: '',
+    userId: '',
+    email: '',
+    mobile: '',
+    aliasName: '',
+    blockBuilding: '',
+    floor: '',
+    address: '',
+    location: '',
+    pinCode: ''
   });
 
   const clearMessages = () => {
@@ -102,67 +128,176 @@ const Profile = ({ user, onLogout, onProfileUpdate }) => {
     }
   };
 
-  // Enhanced authentication check
-  const checkAuth = useCallback(() => {
- 
-    
-  setIsInitializing(true);
-  const token = localStorage.getItem('authToken');
-  
-  if (!token) {
-    setIsAuthenticated(false);
-    setErrors({ general: 'You are not authenticated. Please login again.' });
-    setIsInitializing(false);
-    return false;
-  }
+const checkInitialization=()=>{
 
-   setIsAuthenticated(true);
+const token = localStorage.getItem('authToken');
+
+if (!token || !isTokenValid(token)) {
+
+  setIsAuthenticated(false);
   setIsInitializing(false);
-  return true;
-  }, []);
+}
+else {
+  setIsAuthenticated(true);
+    setIsInitializing(false)
+}}
 
-  useEffect(() => {
-  checkAuth();
-  console.log('Checking authentication status...',checkAuth);
-}, []);
 
-  // Session validation with server
-  // const validateSession = useCallback(async () => {
-  //   try {
-  //     const token = localStorage.getItem('authToken');
-  //     if (!token) return false;
+useEffect(() => {
+  checkInitialization();
+},[])
 
-  //     // Call a lightweight API endpoint to validate session
-  //     const response = await api.auth.validateSession();
-  //     return response.status === 200;
-  //   } catch (error) {
-  //     console.error('Session validation failed:', error);
-  //     if (error.response?.status === 401) {
-  //       handleSessionExpired();
-  //       return false;
-  //     }
-  //     return true; // Don't logout on network errors
+  // // Enhanced authentication check
+  // const checkAuth = useCallback(() => {
+  //   setIsInitializing(true);
+  //   const token = localStorage.getItem('authToken');
+    
+  //   if (!token) {
+  //     setIsAuthenticated(false);
+  //     setErrors({ general: 'You are not authenticated. Please login again.' });
+  //     setIsInitializing(false);
+  //     return false;
   //   }
+
+  //   setIsAuthenticated(true);
+  //   setIsInitializing(false);
+  //   return true;
   // }, []);
 
-  // Handle session expiration
-  const handleSessionExpired = useCallback(() => {
-    setSessionWarning('Your session has expired. You will be redirected to login.');
-    setIsAuthenticated(false);
-    
-    // Log the session invalidation event
-    console.log({
-      timestamp: new Date().toISOString(),
-      event: 'LOGOUT',
-      data: {
-        reason: 'SESSION_INVALID'
-      },
-      userAgent: navigator.userAgent,
-      ip: 'client-side'
-    });
 
-    setTimeout(() => handleForceLogout(), 3000);
+useEffect(() => {fetchUserData();
+  
+  },[])  
+  // Fetch user data from backend
+  const fetchUserData = useCallback(async () => {
+    if (!isAuthenticated) return;
+
+    setIsLoadingUserData(true);
+    try {
+      const token = localStorage.getItem('authToken');
+      
+      // Try multiple possible API endpoints for user data
+      let response;
+      try {
+        // First try the user profile endpoint
+        response = await api.user.getProfile();
+        console.log('User profile fetched successfully:', response.data);
+      } catch (userError) {
+        try {
+          // Fallback to auth profile endpoint
+          response = await api.auth.getProfile();
+        } catch (authError) {
+          // try {
+          //   // Fallback to generic user endpoint
+          //   response = await api.user.get('/user/me', {
+          //     headers: { Authorization: `Bearer ${token}` }
+          //   });
+          // } catch (genericError) {
+          //   // Last resort - try user info endpoint
+          //   response = await api.user.get('/auth/user-info', {
+          //     headers: { Authorization: `Bearer ${token}` }
+          //   });
+          // }
+        }
+      }
+
+      if (response?.data) {
+        const fetchedUserData = response.data;
+        console.log('User data fetched successfully:', fetchedUserData);
+        
+        setUserData(fetchedUserData);
+        
+        // Update profile data with fetched user data
+        updateProfileDataFromUser(fetchedUserData);
+        
+        // Call onProfileUpdate if provided
+        if (onProfileUpdate) {
+          onProfileUpdate(fetchedUserData);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch user data:', error);
+      
+      // Only show error if it's not a 401 (which would be handled by handleApiError)
+      if (error.response?.status !== 401) {
+        const errorMessage = handleApiError(error, 'Fetch user data');
+        setErrors({ general: errorMessage });
+      }
+    } finally {
+      setIsLoadingUserData(false);
+    }
+  }, [isAuthenticated, onProfileUpdate]);
+
+  // Update profile data from user object
+  const updateProfileDataFromUser = useCallback((user) => {
+    if (!user) return;
+
+    const updatedProfileData = {
+      companyName: getDisplayValue(user.company.company_name || user.company || user.organization),
+      userName: getDisplayValue(user.name || user.userName || user.username || user.fullName),
+      userId: getDisplayValue(user.user_id || user.id || user.userIdAlias || user.employeeId),
+      email: getDisplayValue(user.email),
+      mobile: getDisplayValue(user.mobile_number || user.phone || user.phoneNumber),
+      aliasName: getDisplayValue(user.alias_name || user.alias || user.displayName),
+      blockBuilding: getDisplayValue(user.blockBuilding || user.building || user.block),
+      floor: getDisplayValue(user.floor),
+      address: getDisplayValue(user.company.address),
+      location: getDisplayValue(user.company.location || user.city),
+      pinCode: getDisplayValue(user.company.pin_code || user.zipCode || user.postalCode)
+    };
+    
+    setProfileData(updatedProfileData);
+    setFormData(prev => ({
+      ...prev,
+      aliasName: updatedProfileData.aliasName,
+      email: updatedProfileData.email,
+      mobile: updatedProfileData.mobile
+    }));
   }, []);
+
+  // Refresh user data
+  const refreshUserData = async () => {
+    await fetchUserData();
+  };
+
+  // useEffect(() => {
+  //   checkAuth();
+  //   console.log('Checking authentication status...', checkAuth);
+  // }, []);
+
+  // Fetch user data when authenticated
+  useEffect(() => {
+    if (isAuthenticated && !isInitializing) {
+      fetchUserData();
+    }
+  }, [isAuthenticated, isInitializing, fetchUserData]);
+
+  // Update profile data when prop user changes or userData changes
+  useEffect(() => {
+    const currentUser = getCurrentUser();
+    if (currentUser && Object.keys(currentUser).length > 0) {
+      updateProfileDataFromUser(currentUser);
+    }
+  }, [propUser, userData, updateProfileDataFromUser]);
+
+  // Handle session expiration
+  // const handleSessionExpired = useCallback(() => {
+  //   setSessionWarning('Your session has expired. You will be redirected to login.');
+  //   setIsAuthenticated(false);
+    
+  //   // Log the session invalidation event
+  //   console.log({
+  //     timestamp: new Date().toISOString(),
+  //     event: 'LOGOUT',
+  //     data: {
+  //       reason: 'SESSION_INVALID'
+  //     },
+  //     userAgent: navigator.userAgent,
+  //     ip: 'client-side'
+  //   });
+
+  //   setTimeout(() => handleForceLogout(), 3000);
+  // }, []);
 
   // Force logout (for expired sessions)
   const handleForceLogout = useCallback(async () => {
@@ -220,7 +355,7 @@ const Profile = ({ user, onLogout, onProfileUpdate }) => {
     console.error(`${operation} error:`, error);
     
     if (error.response?.status === 401) {
-      handleSessionExpired();
+      // handleSessionExpired();
       return 'Authentication failed. Please login again.';
     }
 
@@ -244,7 +379,7 @@ const Profile = ({ user, onLogout, onProfileUpdate }) => {
     }
 
     return errorMessage;
-  }, [handleSessionExpired]);
+  }, []);
 
   // Validate email format
   const validateEmail = (email) => {
@@ -311,7 +446,7 @@ const Profile = ({ user, onLogout, onProfileUpdate }) => {
   const handlePasswordChange = async () => {
     clearMessages();
     
-    if (!checkAuth()) return;
+    // if (!checkAuth()) return;
     
     // Validate all password fields
     if (!formData.currentPassword || !formData.newPassword || !formData.confirmPassword) {
@@ -347,7 +482,7 @@ const Profile = ({ user, onLogout, onProfileUpdate }) => {
         access_token: token
       };
 
-      console.log('Changing password...', { userId: user?.id });
+      console.log('Changing password...', { userId: getCurrentUser()?.id });
 
       const response = await api.auth.changePassword(passwordPayload);
       
@@ -386,7 +521,7 @@ const Profile = ({ user, onLogout, onProfileUpdate }) => {
   const handleAliasChange = async () => {
     clearMessages();
     
-    if (!checkAuth()) return;
+    // if (!checkAuth()) return;
     
     if (!formData.aliasName.trim()) {
       setErrors({ alias: 'Alias name cannot be empty' });
@@ -421,8 +556,13 @@ const Profile = ({ user, onLogout, onProfileUpdate }) => {
         setSuccess('Alias name updated successfully!');
         setIsEditingAlias(false);
         
+        // Update local user data
+        if (userData) {
+          setUserData(prev => ({ ...prev, aliasName: updatedAlias }));
+        }
+        
         if (onProfileUpdate) {
-          onProfileUpdate({ ...user, aliasName: updatedAlias });
+          onProfileUpdate({ ...getCurrentUser(), aliasName: updatedAlias });
         }
         
         setTimeout(() => setSuccess(''), 3000);
@@ -449,7 +589,7 @@ const Profile = ({ user, onLogout, onProfileUpdate }) => {
   const handleEmailChange = async () => {
     clearMessages();
     
-    if (!checkAuth()) return;
+    // if (!checkAuth()) return;
     
     const emailValidation = validateEmail(formData.email);
     if (!emailValidation.isValid) {
@@ -480,8 +620,13 @@ const Profile = ({ user, onLogout, onProfileUpdate }) => {
         setSuccess('Email updated successfully! Verification email sent.');
         setIsEditingEmail(false);
         
+        // Update local user data
+        if (userData) {
+          setUserData(prev => ({ ...prev, email: updatedEmail }));
+        }
+        
         if (onProfileUpdate) {
-          onProfileUpdate({ ...user, email: updatedEmail });
+          onProfileUpdate({ ...getCurrentUser(), email: updatedEmail });
         }
         
         setTimeout(() => setSuccess(''), 3000);
@@ -509,7 +654,7 @@ const Profile = ({ user, onLogout, onProfileUpdate }) => {
   const handleMobileChange = async () => {
     clearMessages();
     
-    if (!checkAuth()) return;
+    // if (!checkAuth()) return;
     
     const mobileValidation = validateMobile(formData.mobile);
     if (!mobileValidation.isValid) {
@@ -540,8 +685,13 @@ const Profile = ({ user, onLogout, onProfileUpdate }) => {
         setSuccess('Mobile number updated successfully!');
         setIsEditingMobile(false);
         
+        // Update local user data
+        if (userData) {
+          setUserData(prev => ({ ...prev, mobile: updatedMobile }));
+        }
+        
         if (onProfileUpdate) {
-          onProfileUpdate({ ...user, mobile: updatedMobile });
+          onProfileUpdate({ ...getCurrentUser(), mobile: updatedMobile });
         }
         
         setTimeout(() => setSuccess(''), 3000);
@@ -642,60 +792,6 @@ const Profile = ({ user, onLogout, onProfileUpdate }) => {
     }
   };
 
-  // Update form data when user prop changes
-  useEffect(() => {
-    if (user) {
-      const updatedProfileData = {
-        companyName: getDisplayValue(user.companyName || user.company || user.organization),
-        userName: getDisplayValue(user.name || user.userName || user.username),
-        userId: getDisplayValue(user.userId || user.id || user.userIdAlias),
-        email: getDisplayValue(user.email),
-        mobile: getDisplayValue(user.mobile || user.phone),
-        aliasName: getDisplayValue(user.aliasName || user.alias),
-        blockBuilding: getDisplayValue(user.blockBuilding || user.building),
-        floor: getDisplayValue(user.floor),
-        address: getDisplayValue(user.address),
-        location: getDisplayValue(user.location || user.city),
-        pinCode: getDisplayValue(user.pinCode || user.zipCode || user.postalCode)
-      };
-      
-      setProfileData(updatedProfileData);
-      setFormData(prev => ({
-        ...prev,
-        aliasName: updatedProfileData.aliasName,
-        email: updatedProfileData.email,
-        mobile: updatedProfileData.mobile
-      }));
-    }
-  }, [user]);
-
-  // // Initialize authentication check and session validation
-  // useEffect(() => {
-  //   const initializeAuth = async () => {
-  //     if (!checkAuth()) return;
-      
-  //     // Validate session with server
-  //     const isValid = await validateSession();
-  //     if (!isValid) {
-  //       console.warn('Session validation failed');
-  //     }
-  //   };
-
-  //   initializeAuth();
-
-  //   // Set up periodic session validation (every 5 minutes)
-  //   const sessionInterval = setInterval(async () => {
-  //     if (isAuthenticated) {
-  //       const isValid = await validateSession();
-  //       if (!isValid) {
-  //         clearInterval(sessionInterval);
-  //       }
-  //     }
-  //   }, 5 * 60 * 1000); // 5 minutes
-
-  //   return () => clearInterval(sessionInterval);
-  // }, [checkAuth, validateSession, isAuthenticated]);
-
   // Get user's first initial for avatar
   const getUserInitial = () => {
     const name = profileData.userName || profileData.userId || 'U';
@@ -719,13 +815,34 @@ const Profile = ({ user, onLogout, onProfileUpdate }) => {
     <div className="min-h-screen m-0 bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b border-gray-200">
-        <div className="flex items-center p-2">
-          <User className="w-8 h-8 m-0 text-purple-800" />
-          <h1 className="text-2xl font-semibold text-gray-800">Profile</h1>
+        <div className="flex items-center justify-between p-2">
+          <div className="flex items-center">
+            <User className="w-8 h-8 m-0 text-purple-800" />
+            <h1 className="text-2xl font-semibold text-gray-800">Profile</h1>
+          </div>
+          
+          {/* Refresh Button */}
+          <button
+            onClick={refreshUserData}
+            disabled={isLoadingUserData}
+            className="flex items-center px-3 py-2 text-purple-600 rounded-lg bg-purple-50 hover:bg-purple-100 disabled:opacity-50"
+            title="Refresh user data"
+          >
+            <RefreshCw className={`w-4 h-4 mr-2 ${isLoadingUserData ? 'animate-spin' : ''}`} />
+            {isLoadingUserData ? 'Loading...' : 'Refresh'}
+          </button>
         </div>
       </div>
 
       <div className="max-w-6xl p-6 mx-auto">
+        {/* Loading User Data */}
+        {isLoadingUserData && (
+          <div className="flex items-center p-4 mb-6 border border-blue-200 rounded-md bg-blue-50">
+            <Loader2 className="w-5 h-5 mr-3 text-blue-600 animate-spin" />
+            <p className="font-medium text-blue-800">Loading user profile data...</p>
+          </div>
+        )}
+
         {/* Session Warning */}
         {sessionWarning && (
           <div className="flex items-center p-4 mb-6 border border-orange-200 rounded-md bg-orange-50">
@@ -743,7 +860,7 @@ const Profile = ({ user, onLogout, onProfileUpdate }) => {
 
         {/* General Error Message */}
         {errors.general && (
-          <div className="flex items-center p-4 mb-6 border border-red-200 rounded-md bg-red-50">
+          <div className="flex items-center mb-2 rounded-md">
             <AlertCircle className="w-5 h-5 mr-3 text-red-600" />
             <p className="font-medium text-red-800">{errors.general}</p>
           </div>
@@ -800,191 +917,99 @@ const Profile = ({ user, onLogout, onProfileUpdate }) => {
                   <button
                     onClick={() => setIsEditingAlias(true)}
                     disabled={loading || !isAuthenticated}
-                    className="flex items-center w-full p-3 text-left transition-colors bg-purple-100 rounded-lg hover:bg-purple-200 disabled:opacity-50"
+                    className="flex items-center w-full p-3 text-left transition-colors bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50"
                   >
-                    <User className="w-5 h-5 mr-3 text-purple-500" />
+                    <User className="w-5 h-5 mr-3 text-gray-500" />
                     <div>
-                      <p className="font-medium text-purple-700">Change Aliasname</p>
-                      <p className="text-sm text-purple-800">Aliasname</p>
+                      <p className="font-medium text-gray-700">Change Alias Name</p>
+                      <p className="text-sm text-gray-600">
+                        {getFieldValue(profileData.aliasName, 'alias name')}
+                      </p>
                     </div>
                   </button>
                 </div>
+
+                {/* Logout Button */}
+                <button
+                  onClick={handleLogoutClick}
+                  disabled={loading}
+                  className="flex items-center w-full p-3 text-left transition-colors border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-50"
+                >
+                  <LogOut className="w-5 h-5 mr-3 text-red-500" />
+                  <div>
+                    <p className="font-medium text-red-700">Logout</p>
+                    <p className="text-sm text-red-600">Sign out of your account</p>
+                  </div>
+                </button>
               </div>
             </div>
           </div>
 
-          {/* Right Column - Profile Details */}
+          {/* Right Column - Profile Information */}
           <div className="lg:col-span-2">
-            <div className="p-6 bg-white border border-gray-200 rounded-lg shadow-sm">
-              <h3 className="mb-6 text-xl font-semibold text-gray-800">Profile</h3>
+            <div className="overflow-hidden bg-white border border-gray-200 rounded-lg shadow-sm">
+              <div className="px-6 py-4 border-b bg-gray-50">
+                <h3 className="text-lg font-medium text-gray-800">Profile Information</h3>
+              </div>
 
-              <div className="space-y-6">
-                {/* Company Name */}
-                <div className="flex items-center space-x-4">
-                  <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-purple-50">
-                    <Building className="w-5 h-5 text-purple-500" />
+              <div className="p-6">
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                  {/* Company Name */}
+                  <div>
+                    <label className="flex items-center mb-2 text-sm font-medium text-gray-700">
+                      <Building className="w-4 h-4 mr-2" />
+                      Company Name
+                    </label>
+                    <p className="p-3 text-gray-800 bg-gray-100 rounded-md">
+                      {getFieldValue(profileData.companyName, 'company name')}
+                    </p>
                   </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-700">Company Name</p>
-                    <p className="text-gray-900">{getFieldValue(profileData.companyName, 'company name')}</p>
-                  </div>
-                </div>
 
-                {/* User Name */}
-                <div className="flex items-center space-x-4">
-                  <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-purple-50">
-                    <User className="w-5 h-5 text-purple-500" />
+                  {/* User Name */}
+                  <div>
+                    <label className="flex items-center mb-2 text-sm font-medium text-gray-700">
+                      <User className="w-4 h-4 mr-2" />
+                      User Name
+                    </label>
+                    <p className="p-3 text-gray-800 bg-gray-100 rounded-md">
+                      {getFieldValue(profileData.userName, 'user name')}
+                    </p>
                   </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-700">User Name</p>
-                    <p className="text-gray-900">{getFieldValue(profileData.userName, 'user name')}</p>
-                  </div>
-                </div>
 
-                {/* User ID */}
-                <div className="flex items-center space-x-4">
-                  <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-purple-50">
-                    <User className="w-5 h-5 text-purple-500" />
+                  {/* User ID */}
+                  <div>
+                    <label className="flex items-center mb-2 text-sm font-medium text-gray-700">
+                      <User className="w-4 h-4 mr-2" />
+                      User ID
+                    </label>
+                    <p className="p-3 text-gray-800 bg-gray-100 rounded-md">
+                      {getFieldValue(profileData.userId, 'user ID')}
+                    </p>
                   </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-700">User ID</p>
-                    <p className="text-gray-900">{getFieldValue(profileData.userId, 'user ID')}</p>
-                  </div>
-                </div>
 
-                {/* Email */}
-                <div className="flex items-center space-x-4">
-                  <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-purple-50">
-                    <Mail className="w-5 h-5 text-purple-500" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-700">Email</p>
-                    {isEditingEmail ? (
-                      <div className="mt-2">
-                        <input
-                          type="email"
-                          value={formData.email}
-                          onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-                          placeholder="Enter email address"
-                          disabled={loading}
-                        />
-                        {errors.email && (
-                          <p className="mt-1 text-sm text-red-600">{errors.email}</p>
-                        )}
-                        <div className="flex mt-2 space-x-2">
-                          <button
-                            onClick={handleEmailChange}
-                            disabled={loading}
-                            className="flex items-center px-3 py-1 text-sm text-white bg-purple-600 rounded hover:bg-purple-700 disabled:opacity-50"
-                          >
-                            {loading ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Save className="w-4 h-4 mr-1" />}
-                            Save
-                          </button>
-                          <button
-                            onClick={() => handleCancel('email')}
-                            disabled={loading}
-                            className="flex items-center px-3 py-1 text-sm text-gray-600 bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50"
-                          >
-                            <X className="w-4 h-4 mr-1" />
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-between">
-                        <p className="text-gray-900">{getFieldValue(profileData.email, 'email')}</p>
-                        <button
-                          onClick={() => setIsEditingEmail(true)}
-                          disabled={loading || !isAuthenticated}
-                          className="p-1 text-purple-600 hover:text-purple-800 disabled:opacity-50"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Mobile */}
-                <div className="flex items-center space-x-4">
-                  <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-purple-50">
-                    <Phone className="w-5 h-5 text-purple-500" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-700">Mobile</p>
-                    {isEditingMobile ? (
-                      <div className="mt-2">
-                        <input
-                          type="tel"
-                          value={formData.mobile}
-                          onChange={(e) => setFormData(prev => ({ ...prev, mobile: e.target.value }))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-                          placeholder="Enter mobile number"
-                          disabled={loading}
-                        />
-                        {errors.mobile && (
-                          <p className="mt-1 text-sm text-red-600">{errors.mobile}</p>
-                        )}
-                        <div className="flex mt-2 space-x-2">
-                          <button
-                            onClick={handleMobileChange}
-                            disabled={loading}
-                            className="flex items-center px-3 py-1 text-sm text-white bg-purple-600 rounded hover:bg-purple-700 disabled:opacity-50"
-                          >
-                            {loading ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Save className="w-4 h-4 mr-1" />}
-                            Save
-                          </button>
-                          <button
-                            onClick={() => handleCancel('mobile')}
-                            disabled={loading}
-                            className="flex items-center px-3 py-1 text-sm text-gray-600 bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50"
-                          >
-                            <X className="w-4 h-4 mr-1" />
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-between">
-                        <p className="text-gray-900">{getFieldValue(profileData.mobile, 'mobile number')}</p>
-                        <button
-                          onClick={() => setIsEditingMobile(true)}
-                          disabled={loading || !isAuthenticated}
-                          className="p-1 text-purple-600 hover:text-purple-800 disabled:opacity-50"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Alias Name */}
-                <div className="flex items-center space-x-4">
-                  <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-purple-50">
-                    <User className="w-5 h-5 text-purple-500" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-700">Alias Name</p>
+                  {/* Alias Name - Editable */}
+                  <div>
+                    <label className="flex items-center mb-2 text-sm font-medium text-gray-700">
+                      <User className="w-4 h-4 mr-2" />
+                      Alias Name
+                    </label>
                     {isEditingAlias ? (
-                      <div className="mt-2">
+                      <div className="space-y-2">
                         <input
                           type="text"
                           value={formData.aliasName}
                           onChange={(e) => setFormData(prev => ({ ...prev, aliasName: e.target.value }))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                          className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                           placeholder="Enter alias name"
-                          disabled={loading}
                         />
                         {errors.alias && (
-                          <p className="mt-1 text-sm text-red-600">{errors.alias}</p>
+                          <p className="text-sm text-red-600">{errors.alias}</p>
                         )}
-                        <div className="flex mt-2 space-x-2">
+                        <div className="flex space-x-2">
                           <button
                             onClick={handleAliasChange}
                             disabled={loading}
-                            className="flex items-center px-3 py-1 text-sm text-white bg-purple-600 rounded hover:bg-purple-700 disabled:opacity-50"
+                            className="flex items-center px-3 py-1 text-sm text-green-800 bg-white border border-green-800 rounded hover:bg-green-100 disabled:opacity-50"
                           >
                             {loading ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Save className="w-4 h-4 mr-1" />}
                             Save
@@ -1000,8 +1025,10 @@ const Profile = ({ user, onLogout, onProfileUpdate }) => {
                         </div>
                       </div>
                     ) : (
-                      <div className="flex items-center justify-between">
-                        <p className="text-gray-900">{getFieldValue(profileData.aliasName, 'alias name')}</p>
+                      <div className="flex items-center justify-between p-3 bg-gray-100 rounded-md">
+                        <span className="text-gray-800">
+                          {getFieldValue(profileData.aliasName, 'alias name')}
+                        </span>
                         <button
                           onClick={() => setIsEditingAlias(true)}
                           disabled={loading || !isAuthenticated}
@@ -1012,125 +1039,211 @@ const Profile = ({ user, onLogout, onProfileUpdate }) => {
                       </div>
                     )}
                   </div>
-                </div>
 
-                {/* Block/Building */}
-                <div className="flex items-center space-x-4">
-                  <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-purple-50">
-                    <Building className="w-5 h-5 text-purple-500" />
+                  {/* Email - Editable */}
+                  <div>
+                    <label className="flex items-center mb-2 text-sm font-medium text-gray-700">
+                      <Mail className="w-4 h-4 mr-2" />
+                      Email
+                    </label>
+                    {isEditingEmail ? (
+                      <div className="space-y-2">
+                        <input
+                          type="email"
+                          value={formData.email}
+                          onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                          className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                          placeholder="Enter email address"
+                        />
+                        {errors.email && (
+                          <p className="text-sm text-red-600">{errors.email}</p>
+                        )}
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={handleEmailChange}
+                            disabled={loading}
+                            className="flex items-center px-3 py-1 text-sm text-green-800 bg-white border border-green-800 rounded hover:bg-green-100 disabled:opacity-50"
+                          >
+                            {loading ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Save className="w-4 h-4 mr-1" />}
+                            Save
+                          </button>
+                          <button
+                            onClick={() => handleCancel('email')}
+                            disabled={loading}
+                            className="flex items-center px-3 py-1 text-sm text-gray-600 bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50"
+                          >
+                            <X className="w-4 h-4 mr-1" />
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between p-3 bg-gray-100 rounded-md">
+                        <span className="text-gray-800">
+                          {getFieldValue(profileData.email, 'email')}
+                        </span>
+                        <button
+                          onClick={() => setIsEditingEmail(true)}
+                          disabled={loading || !isAuthenticated}
+                          className="p-1 text-purple-600 hover:text-purple-800 disabled:opacity-50"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
                   </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-700">Block/Building</p>
-                    <p className="text-gray-900">{getFieldValue(profileData.blockBuilding, 'block/building')}</p>
+
+                  {/* Mobile - Editable */}
+                  <div>
+                    <label className="flex items-center mb-2 text-sm font-medium text-gray-700">
+                      <Phone className="w-4 h-4 mr-2" />
+                      Mobile Number
+                    </label>
+                    {isEditingMobile ? (
+                      <div className="space-y-2">
+                        <input
+                          type="tel"
+                          value={formData.mobile}
+                          onChange={(e) => setFormData(prev => ({ ...prev, mobile: e.target.value }))}
+                          className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                          placeholder="Enter mobile number"
+                        />
+                        {errors.mobile && (
+                          <p className="text-sm text-red-600">{errors.mobile}</p>
+                        )}
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={handleMobileChange}
+                            disabled={loading}
+                            className="flex items-center px-3 py-1 text-sm text-green-800 bg-white border border-green-800 rounded hover:bg-green-100 disabled:opacity-50"
+                          >
+                            {loading ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Save className="w-4 h-4 mr-1" />}
+                            Save
+                          </button>
+                          <button
+                            onClick={() => handleCancel('mobile')}
+                            disabled={loading}
+                            className="flex items-center px-3 py-1 text-sm text-gray-600 bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50"
+                          >
+                            <X className="w-4 h-4 mr-1" />
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between p-3 bg-gray-100 rounded-md">
+                        <span className="text-gray-800">
+                          {getFieldValue(profileData.mobile, 'mobile number')}
+                        </span>
+                        <button
+                          onClick={() => setIsEditingMobile(true)}
+                          disabled={loading || !isAuthenticated}
+                          className="p-1 text-purple-600 hover:text-purple-800 disabled:opacity-50"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Block/Building */}
+                  <div>
+                    <label className="flex items-center mb-2 text-sm font-medium text-gray-700">
+                      <Building className="w-4 h-4 mr-2" />
+                      Block/Building
+                    </label>
+                    <p className="p-3 text-gray-800 bg-gray-100 rounded-md">
+                      {getFieldValue(profileData.blockBuilding, 'block/building')}
+                    </p>
+                  </div>
+
+                  {/* Floor */}
+                  <div>
+                    <label className="flex items-center mb-2 text-sm font-medium text-gray-700">
+                      <Building className="w-4 h-4 mr-2" />
+                      Floor
+                    </label>
+                    <p className="p-3 text-gray-800 bg-gray-100 rounded-md">
+                      {getFieldValue(profileData.floor, 'floor')}
+                    </p>
+                  </div>
+
+                  {/* Address */}
+                  <div className="md:col-span-2">
+                    <label className="flex items-center mb-2 text-sm font-medium text-gray-700">
+                      <MapPin className="w-4 h-4 mr-2" />
+                      Address
+                    </label>
+                    <p className="p-3 text-gray-800 bg-gray-100 rounded-md">
+                      {getFieldValue(profileData.address, 'address')}
+                    </p>
+                  </div>
+
+                  {/* Location */}
+                  <div>
+                    <label className="flex items-center mb-2 text-sm font-medium text-gray-700">
+                      <MapPin className="w-4 h-4 mr-2" />
+                      Location
+                    </label>
+                    <p className="p-3 text-gray-800 bg-gray-100 rounded-md">
+                      {getFieldValue(profileData.location, 'location')}
+                    </p>
+                  </div>
+
+                  {/* Pin Code */}
+                  <div>
+                    <label className="flex items-center mb-2 text-sm font-medium text-gray-700">
+                      <MapPin className="w-4 h-4 mr-2" />
+                      Pin Code
+                    </label>
+                    <p className="p-3 text-gray-800 bg-gray-100 rounded-md">
+                      {getFieldValue(profileData.pinCode, 'pin code')}
+                    </p>
                   </div>
                 </div>
-
-                {/* Floor */}
-                <div className="flex items-center space-x-4">
-                  <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-purple-50">
-                    <Building className="w-5 h-5 text-purple-500" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-700">Floor</p>
-                    <p className="text-gray-900">{getFieldValue(profileData.floor, 'floor')}</p>
-                  </div>
-                </div>
-
-                {/* Address */}
-                <div className="flex items-center space-x-4">
-                  <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-purple-50">
-                    <MapPin className="w-5 h-5 text-purple-500" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-700">Address</p>
-                    <p className="text-gray-900">{getFieldValue(profileData.address, 'address')}</p>
-                  </div>
-                </div>
-
-                {/* Location */}
-                <div className="flex items-center space-x-4">
-                  <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-purple-50">
-                    <MapPin className="w-5 h-5 text-purple-500" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-700">Location</p>
-                    <p className="text-gray-900">{getFieldValue(profileData.location, 'location')}</p>
-                  </div>
-                </div>
-
-                {/* Pin Code */}
-                <div className="flex items-center space-x-4">
-                  <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-purple-50">
-                    <MapPin className="w-5 h-5 text-purple-500" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-700">Pin Code</p>
-                    <p className="text-gray-900">{getFieldValue(profileData.pinCode, 'pin code')}</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Logout Button */}
-              <div className="pt-6 mt-8 border-t border-gray-200">
-                <button
-                  onClick={handleLogoutClick}
-                  disabled={loading}
-                  className="flex items-center px-4 py-2 text-purple-800 bg-white border border-purple-800 rounded-lg hover:bg-purple-100 disabled:opacity-50"
-                >
-                  {loading ? (
-                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                  ) : (
-                    <LogOut className="w-5 h-5 mr-2" />
-                  )}
-                  Sign Out
-                </button>
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Password Change Modal */}
-      {isEditingPassword && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="w-full max-w-md mx-4 bg-white rounded-lg shadow-xl">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold text-gray-800">Change Password</h3>
+        {/* Password Change Modal */}
+        {isEditingPassword && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+            <div className="w-full max-w-md p-6 bg-white rounded-lg shadow-xl">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-medium text-gray-800">Change Password</h3>
                 <button
                   onClick={() => handleCancel('password')}
                   disabled={loading}
-                  className="text-gray-400 hover:text-gray-600 disabled:opacity-50"
+                  className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-50"
                 >
-                  <X className="w-6 h-6" />
+                  <X className="w-5 h-5" />
                 </button>
               </div>
 
               <div className="space-y-4">
                 {/* Current Password */}
                 <div>
-                  <label className="block mb-1 text-sm font-medium text-gray-700">
+                  <label className="block mb-2 text-sm font-medium text-gray-700">
                     Current Password
                   </label>
                   <div className="relative">
                     <input
-                      type={showCurrentPassword ? "text" : "password"}
+                      type={showCurrentPassword ? 'text' : 'password'}
                       value={formData.currentPassword}
                       onChange={(e) => setFormData(prev => ({ ...prev, currentPassword: e.target.value }))}
-                      className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      className="w-full p-3 pr-10 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                       placeholder="Enter current password"
-                      disabled={loading}
                     />
                     <button
                       type="button"
                       onClick={() => setShowCurrentPassword(!showCurrentPassword)}
                       className="absolute inset-y-0 right-0 flex items-center pr-3"
-                      disabled={loading}
                     >
                       {showCurrentPassword ? (
-                        <EyeOff className="w-4 h-4 text-gray-400" />
+                        <EyeOff className="w-5 h-5 text-gray-400" />
                       ) : (
-                        <Eye className="w-4 h-4 text-gray-400" />
+                        <Eye className="w-5 h-5 text-gray-400" />
                       )}
                     </button>
                   </div>
@@ -1138,28 +1251,26 @@ const Profile = ({ user, onLogout, onProfileUpdate }) => {
 
                 {/* New Password */}
                 <div>
-                  <label className="block mb-1 text-sm font-medium text-gray-700">
+                  <label className="block mb-2 text-sm font-medium text-gray-700">
                     New Password
                   </label>
                   <div className="relative">
                     <input
-                      type={showNewPassword ? "text" : "password"}
+                      type={showNewPassword ? 'text' : 'password'}
                       value={formData.newPassword}
                       onChange={(e) => setFormData(prev => ({ ...prev, newPassword: e.target.value }))}
-                      className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      className="w-full p-3 pr-10 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                       placeholder="Enter new password"
-                      disabled={loading}
                     />
                     <button
                       type="button"
                       onClick={() => setShowNewPassword(!showNewPassword)}
                       className="absolute inset-y-0 right-0 flex items-center pr-3"
-                      disabled={loading}
                     >
                       {showNewPassword ? (
-                        <EyeOff className="w-4 h-4 text-gray-400" />
+                        <EyeOff className="w-5 h-5 text-gray-400" />
                       ) : (
-                        <Eye className="w-4 h-4 text-gray-400" />
+                        <Eye className="w-5 h-5 text-gray-400" />
                       )}
                     </button>
                   </div>
@@ -1167,77 +1278,77 @@ const Profile = ({ user, onLogout, onProfileUpdate }) => {
 
                 {/* Confirm Password */}
                 <div>
-                  <label className="block mb-1 text-sm font-medium text-gray-700">
+                  <label className="block mb-2 text-sm font-medium text-gray-700">
                     Confirm New Password
                   </label>
                   <div className="relative">
                     <input
-                      type={showConfirmPassword ? "text" : "password"}
+                      type={showConfirmPassword ? 'text' : 'password'}
                       value={formData.confirmPassword}
                       onChange={(e) => setFormData(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                      className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      className="w-full p-3 pr-10 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                       placeholder="Confirm new password"
-                      disabled={loading}
                     />
                     <button
                       type="button"
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                       className="absolute inset-y-0 right-0 flex items-center pr-3"
-                      disabled={loading}
                     >
                       {showConfirmPassword ? (
-                        <EyeOff className="w-4 h-4 text-gray-400" />
+                        <EyeOff className="w-5 h-5 text-gray-400" />
                       ) : (
-                        <Eye className="w-4 h-4 text-gray-400" />
+                        <Eye className="w-5 h-5 text-gray-400" />
                       )}
                     </button>
                   </div>
                 </div>
 
-                {/* Password Error */}
-                {errors.password && (
-                  <div className="p-3 border border-red-200 rounded-md bg-red-50">
-                    <p className="text-sm text-red-600">{errors.password}</p>
-                  </div>
-                )}
-
                 {/* Password Requirements */}
-                <div className="p-3 border border-blue-200 rounded-md bg-blue-50">
-                  <p className="mb-1 text-sm font-medium text-blue-800">Password Requirements:</p>
-                  <ul className="space-y-1 text-xs text-blue-700">
+                <div className="p-3 rounded-md bg-gray-50">
+                  <p className="mb-2 text-sm font-medium text-gray-700">Password Requirements:</p>
+                  <ul className="space-y-1 text-xs text-gray-600">
                     <li>• At least 6 characters long</li>
                     <li>• Contains uppercase and lowercase letters</li>
                     <li>• Contains at least one number</li>
                     <li>• Contains at least one special character</li>
                   </ul>
                 </div>
-              </div>
 
-              <div className="flex mt-6 space-x-3">
-                <button
-                  onClick={handlePasswordChange}
-                  disabled={loading}
-                  className="flex items-center justify-center flex-1 px-4 py-2 text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:opacity-50"
-                >
-                  {loading ? (
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  ) : (
-                    <Save className="w-4 h-4 mr-2" />
-                  )}
-                  Update Password
-                </button>
-                <button
-                  onClick={() => handleCancel('password')}
-                  disabled={loading}
-                  className="px-4 py-2 text-gray-600 bg-gray-200 rounded-lg hover:bg-gray-300 disabled:opacity-50"
-                >
-                  Cancel
-                </button>
+                {/* Error Message */}
+                {errors.password && (
+                  <div className="rounded-md bg-red-50">
+                    <p className="text-sm text-red-600">{errors.password}</p>
+                  </div>
+                )}
+
+                {/* Action Buttons */}
+                <div className="flex pt-4 space-x-3">
+                  <button
+                    onClick={handlePasswordChange}
+                    disabled={loading}
+                    className="flex items-center justify-center flex-1 px-4 py-2 text-purple-800 bg-white border border-purple-800 rounded-md hover:bg-purple-100 disabled:opacity-50"
+                  >
+                    {loading ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Save className="w-4 h-4 mr-2" />
+                    )}
+                    Update Password
+                  </button>
+                  <button
+                    onClick={() => handleCancel('password')}
+                    disabled={loading}
+                    className="flex items-center justify-center flex-1 px-4 py-2 text-gray-600 bg-gray-200 rounded-md hover:bg-gray-300 disabled:opacity-50"
+                  >
+                    <X className="w-4 h-4 mr-2" />
+                    Cancel
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };

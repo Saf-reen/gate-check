@@ -4,7 +4,7 @@ import { Menu, Bell, Search, User, LogOut, Settings, ChevronDown } from 'lucide-
 import authService from '../Auth/AuthService';
 import { api } from '../Auth/api'; // Adjust the import path as necessary
 
-const Navbar = ({ user, onSidebarToggle, onLogout }) => {
+const Navbar = ({ user, onSidebarToggle, onLogout, isSidebarOpen }) => {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -13,11 +13,6 @@ const Navbar = ({ user, onSidebarToggle, onLogout }) => {
     setShowUserMenu(false);
     navigate('/profile');
   };
-
-  // const handleLogoutClick = () => {
-  //   setShowUserMenu(false);
-  //   onLogout();
-  // };
 
   const handleLogoutClick = async () => {
       try {
@@ -67,15 +62,22 @@ const Navbar = ({ user, onSidebarToggle, onLogout }) => {
         setLoading(false);
       }
     };
+
   return (
-    <nav className="px-4 py-2 bg-white border-b border-gray-200 shadow-sm">
-      <div className="flex items-center justify-between">
+    <nav 
+      className={`fixed top-0 z-30 px-4 py-2 bg-white border-b border-gray-200 transition-all duration-300 ${
+        isSidebarOpen 
+          ? 'w-[calc(100%-200px)] ml-[10px]' 
+          : 'w-full ml-0'
+      }`}
+    >
+      <div className="flex items-center justify-between ">
         {/* Left side */}
         <div className="flex items-center space-x-2">
           {/* Mobile menu button */}
           <button
             onClick={onSidebarToggle}
-            className="p-1 transition-colors rounded-lg lg:hidden hover:bg-gray-100"
+            className="p-1 transition-colors rounded-lg hover:bg-gray-100"
           >
             <Menu className="w-5 h-5 text-gray-600" />
           </button>
@@ -110,11 +112,11 @@ const Navbar = ({ user, onSidebarToggle, onLogout }) => {
             >
               <div className="flex items-center justify-center w-8 h-8 bg-white border border-purple-800 rounded-full">
                 <span className="text-sm font-semibold text-purple-800">
-                  {user?.name?.charAt(0)?.toUpperCase() || 'U'}
+                  {user?.username?.charAt(0)?.toUpperCase() || 'U'}
                 </span>
               </div>
               <div className="hidden text-left md:block">
-                <p className="text-sm font-medium text-gray-900">{user?.name || 'User'}</p>
+                <p className="text-sm font-medium text-gray-900">{user?.username || 'User'}</p>
                 {/* <p className="text-sm text-gray-500">{user?.role || 'Member'}</p> */}
               </div>
               <ChevronDown className="w-5 h-5 text-gray-400" />
@@ -124,7 +126,7 @@ const Navbar = ({ user, onSidebarToggle, onLogout }) => {
             {showUserMenu && (
               <div className="absolute right-0 z-50 w-40 py-1 mt-1 bg-white border border-gray-200 rounded-md shadow-md">
                 <div className="px-2 py-1 border-b border-gray-100">
-                  <p className="text-sm font-medium text-gray-900">{user?.name || 'User'}</p>
+                  <p className="text-sm font-medium text-gray-900">{user?.username || 'User'}</p>
                   <p className="text-sm text-gray-500">{user?.email || 'user@example.com'}</p>
                 </div>
                 

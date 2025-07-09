@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Eye, EyeOff, RefreshCw, User, Loader2, ArrowLeft } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import authService from '../Auth/AuthService';
 import { api, setupAxiosInterceptors } from '../Auth/api';
 // import bg_img from '../asset/bg_img.jpg';
@@ -15,6 +15,7 @@ const LoginForm = ({ onLogin }) => {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [isMobile, setIsMobile] = useState(false);
+  const navigate = useNavigate();
 
   // Generate random captcha
   const generateCaptcha = useCallback(() => {
@@ -183,6 +184,14 @@ const handleFirstSignIn = async () => {
 
       // Make login request using the API service
       const response = await api.auth.login(credentials);
+
+
+      if(response.status === 200) {
+
+
+navigate('/dashboard');
+        
+      }
       if (response.data) {
 
 
@@ -195,6 +204,7 @@ const handleFirstSignIn = async () => {
           data: responseData 
         } = response.data;
 
+console.log('Login response data:', responseData);
 
         
         const authToken = access || responseData?.access || '';
@@ -222,7 +232,9 @@ const handleFirstSignIn = async () => {
           // Add any other user properties your app needs
           ...(user || responseData?.user || {})
         };
-        
+        if (userData) {
+          localStorage.setItem('userData', JSON.stringify(userData));
+        }
         // Set user data in authService if it exists
         if (authService) {
           if (authService.setUser) {

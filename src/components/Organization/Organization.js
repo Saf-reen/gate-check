@@ -1,60 +1,128 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { FaBuilding, FaPlus, FaTimes, FaUsers, FaCalendar, FaEnvelope, FaEye, FaSearch, FaSpinner } from 'react-icons/fa';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { FaBuilding, FaPlus, FaSpinner } from 'react-icons/fa';
+import OrganizationList from './OrganizationList';
+import OrganizationForm from './OrganizationForm';
+import DeleteModal from './DeleteModal';
+import SearchBar from './SearchBar';
+import AuthCheck from './AuthCheck';
 import AddUserModal from '../Users/AddUserModal';
 import UserManagement from '../Users/UserManagement';
-import { api } from '../Auth/api'; // Import your API service
+import { api } from '../Auth/api';
 
 const Organization = ({ userProfile, user, onLogout }) => {
   const [organizations, setOrganizations] = useState([]);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showEditForm, setShowEditForm] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showAddUserModal, setShowAddUserModal] = useState(false);
   const [showUserManagement, setShowUserManagement] = useState(false);
   const [selectedOrgId, setSelectedOrgId] = useState(null);
   const [selectedOrganization, setSelectedOrganization] = useState(null);
+  const [selectedOrgForUser, setSelectedOrgForUser] = useState(null);
+  const [organizationToEdit, setOrganizationToEdit] = useState(null);
+  const [organizationToDelete, setOrganizationToDelete] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [userDataLoading, setUserDataLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    establishedDate: ''
+    company_name: '',
+    address: '',
+    location: '',
+    pin_code: ''
   });
 
-  // Filter organizations based on search query
-  const filteredOrganizations = useMemo(() => {
-    if (!searchQuery.trim()) {
-      return organizations;
+  const isTokenValid = (token) => {
+    if (!token) return false;
+
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      const currentTime = Date.now() / 1000;
+
+      if (payload.exp && payload.exp < currentTime) {
+        console.warn('Token has expired');
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Token validation error:', error);
+      return false;
+    }
+  };
+
+  const checkAuth = useCallback(() => {
+    setIsInitializing(true);
+    const token = localStorage.getItem('authToken');
+
+    if (!token || !isTokenValid(token)) {
+      setIsAuthenticated(false);
+      setErrors({ general: 'You are not authenticated. Please login again.' });
+      setIsInitializing(false);
+      return false;
     }
 
-    const query = searchQuery.toLowerCase().trim();
-    return organizations.filter(org => 
-      org.name.toLowerCase().includes(query) ||
-      org.email.toLowerCase().includes(query)
-    );
-  }, [organizations, searchQuery]);
-
-  // Load organizations on component mount
-  useEffect(() => {
-    fetchOrganizations();
+    setIsAuthenticated(true);
+    setIsInitializing(false);
+    return true;
   }, []);
 
-  // Fetch organizations from API
+  const fetchUsersForOrganization = async (organizationId) => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await api.user.getByOrganization(organizationId, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (response.data) {
+        const userData = response.data.users || response.data.data || response.data;
+        const usersArray = Array.isArray(userData) ? userData : [];
+        console.log(`Fetched ${usersArray.length} users for organization ${organizationId}:`, usersArray);
+        return usersArray;
+      }
+      return [];
+    } catch (error) {
+      console.error(`Failed to fetch users for organization ${organizationId}:`, error);
+      return [];
+    }
+  };
+
   const fetchOrganizations = async () => {
     setInitialLoading(true);
     setErrors({});
 
     try {
-      const response = await api.organization.getAll();
-      
+      const token = localStorage.getItem('authToken');
+      const response = await api.organization.getAll({ headers: { Authorization: `Bearer ${token}` } });
+
       if (response.data) {
-        // Handle different response structures
         const orgData = response.data.organizations || response.data.data || response.data;
-        setOrganizations(Array.isArray(orgData) ? orgData : []);
+        const orgsArray = Array.isArray(orgData) ? orgData : [];
+
+        console.log('Organizations loaded:', orgsArray);
+
+        setUserDataLoading(true);
+        const orgsWithUsers = await Promise.all(
+          orgsArray.map(async (org) => {
+            const users = await fetchUsersForOrganization(org.id);
+            return {
+              ...org,
+              users: users,
+              userCount: users.length
+            };
+          })
+        );
+
+        setOrganizations(orgsWithUsers);
+        console.log('Organizations with user data loaded:', orgsWithUsers);
+        setUserDataLoading(false);
       }
     } catch (error) {
       console.error('Failed to fetch organizations:', error);
-      
       let errorMessage = 'Failed to load organizations';
       if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
@@ -63,109 +131,91 @@ const Organization = ({ userProfile, user, onLogout }) => {
       } else if (error.message) {
         errorMessage = error.message;
       }
-      
       setErrors({ fetch: errorMessage });
+      setUserDataLoading(false);
     } finally {
       setInitialLoading(false);
     }
   };
 
-  // Validate organization form data
-  const validateOrganizationForm = () => {
-    const newErrors = {};
-
-    // Name validation
-    if (!formData.name.trim()) {
-      newErrors.name = 'Organization name is required';
-    } else if (formData.name.trim().length < 3) {
-      newErrors.name = 'Organization name must be at least 3 characters';
-    } else if (formData.name.trim().length > 100) {
-      newErrors.name = 'Organization name must be less than 100 characters';
-    }
-
-    // Email validation
-    if (!formData.email.trim()) {
-      newErrors.email = 'Official email is required';
-    } else {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(formData.email.trim())) {
-        newErrors.email = 'Please enter a valid email address';
-      }
-    }
-
-    // Date validation
-    if (!formData.establishedDate) {
-      newErrors.establishedDate = 'Established date is required';
-    } else {
-      const selectedDate = new Date(formData.establishedDate);
-      const today = new Date();
-      today.setHours(23, 59, 59, 999); // End of today
-      
-      if (selectedDate > today) {
-        newErrors.establishedDate = 'Established date cannot be in the future';
-      }
-      
-      // Check if date is too far in the past (e.g., before 1800)
-      const minDate = new Date('1800-01-01');
-      if (selectedDate < minDate) {
-        newErrors.establishedDate = 'Please enter a valid established date';
-      }
-    }
-
-    return newErrors;
-  };
-
-  // Check if organization name or email already exists
-  const checkOrganizationExists = async (name, email, excludeId = null) => {
+  const refreshOrganizationUsers = async (organizationId) => {
     try {
-      const checkData = {
-        name: name.trim(),
-        email: email.trim(),
-        ...(excludeId && { excludeId })
-      };
+      const users = await fetchUsersForOrganization(organizationId);
 
-      const response = await api.organization.checkExists(checkData);
-      return response.data;
+      setOrganizations(prev =>
+        prev.map(org =>
+          org.id === organizationId
+            ? { ...org, users: users, userCount: users.length }
+            : org
+        )
+      );
+
+      console.log(`Refreshed users for organization ${organizationId}: ${users.length} users`);
+      return users;
     } catch (error) {
-      console.error('Error checking organization existence:', error);
-      // If check fails, allow the main API call to handle the error
-      return { exists: false };
+      console.error(`Failed to refresh users for organization ${organizationId}:`, error);
+      return [];
     }
   };
 
-  // Handle input changes
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-
-    // Clear specific field error when user starts typing
-    if (errors[name]) {
-      setErrors(prev => ({
-        ...prev,
-        [name]: ''
-      }));
-    }
-  };
-
-  // Handle search changes
   const handleSearchChange = (e) => {
     setSearchQuery(e.target.value);
   };
 
-  // Clear search
   const clearSearch = () => {
     setSearchQuery('');
   };
 
-  // Handle add organization
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: '' }));
+    }
+
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const validateForm = () => {
+    const newErrors = {};
+
+    if (!formData.company_name?.trim()) {
+      newErrors.company_name = 'Organization name is required';
+    }
+
+    if (!formData.location?.trim()) {
+      newErrors.location = 'Location is required';
+    }
+
+    if (!formData.address?.trim()) {
+      newErrors.address = 'Address is required';
+    }
+
+    if (!formData.pin_code?.trim()) {
+      newErrors.pin_code = 'PIN code is required';
+    } else if (!/^\d{6}$/.test(formData.pin_code)) {
+      newErrors.pin_code = 'PIN code must be 6 digits';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const resetForm = () => {
+    setFormData({
+      company_name: '',
+      address: '',
+      location: '',
+      pin_code: ''
+    });
+    setErrors({});
+  };
+
   const handleAddOrganization = async () => {
-    // Validate form data
-    const formErrors = validateOrganizationForm();
-    if (Object.keys(formErrors).length > 0) {
-      setErrors(formErrors);
+    if (!validateForm()) {
       return;
     }
 
@@ -173,299 +223,223 @@ const Organization = ({ userProfile, user, onLogout }) => {
     setErrors({});
 
     try {
-      // Check if organization already exists
-      const existsResponse = await checkOrganizationExists(formData.name, formData.email);
-      
-      if (existsResponse.exists) {
-        const duplicateErrors = {};
-        if (existsResponse.duplicateFields?.includes('name')) {
-          duplicateErrors.name = 'An organization with this name already exists';
-        }
-        if (existsResponse.duplicateFields?.includes('email')) {
-          duplicateErrors.email = 'An organization with this email already exists';
-        }
-        setErrors(duplicateErrors);
-        return;
-      }
+      const token = localStorage.getItem('authToken');
+      const response = await api.organization.create(formData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
 
-      // Prepare organization data for API
-      const organizationData = {
-        name: formData.name.trim(),
-        email: formData.email.trim().toLowerCase(),
-        establishedDate: formData.establishedDate,
-        createdBy: user?.id || userProfile?.id,
-        status: 'active'
-      };
-
-      // Create organization via API
-      const response = await api.organization.create(organizationData);
-      
       if (response.data) {
-        // Handle different response structures
         const newOrg = response.data.organization || response.data.data || response.data;
-        
-        // Ensure the organization has required fields
-        const organizationWithDefaults = {
-          id: newOrg.id,
-          name: newOrg.name,
-          email: newOrg.email,
-          establishedDate: newOrg.establishedDate,
-          users: newOrg.users || [],
-          status: newOrg.status || 'active',
-          createdAt: newOrg.createdAt || new Date().toISOString(),
-          ...newOrg
+        const normalizedNewOrg = {
+          ...newOrg,
+          users: [],
+          userCount: 0
         };
 
-        // Add to local state
-        setOrganizations(prev => [...prev, organizationWithDefaults]);
-        
-        // Reset form and close modal
-        setFormData({ name: '', email: '', establishedDate: '' });
+        setOrganizations(prev => [...prev, normalizedNewOrg]);
+        refreshOrganizationUsers(newOrg.id);
+        resetForm();
         setShowAddForm(false);
-        
-        // Show success message (you can implement a toast notification here)
-        console.log('Organization created successfully:', organizationWithDefaults);
+        console.log('Organization created successfully');
       }
     } catch (error) {
       console.error('Failed to create organization:', error);
-      
-      // Handle different types of errors
-      let errorMessage = 'Failed to create organization. Please try again.';
-      
-      if (error.response?.data?.errors) {
-        // Handle validation errors from backend
-        const backendErrors = error.response.data.errors;
-        const formattedErrors = {};
-        
-        Object.keys(backendErrors).forEach(field => {
-          const fieldErrors = backendErrors[field];
-          formattedErrors[field] = Array.isArray(fieldErrors) ? fieldErrors[0] : fieldErrors;
-        });
-        
-        setErrors(formattedErrors);
-        return;
-      } else if (error.response?.data?.message) {
+      let errorMessage = 'Failed to create organization';
+
+      if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
       } else if (error.response?.data?.error) {
         errorMessage = error.response.data.error;
       } else if (error.message) {
         errorMessage = error.message;
       }
-      
-      // Handle specific error cases
-      if (errorMessage.toLowerCase().includes('duplicate') || 
-          errorMessage.toLowerCase().includes('already exists')) {
-        if (errorMessage.toLowerCase().includes('name')) {
-          setErrors({ name: 'An organization with this name already exists' });
-        } else if (errorMessage.toLowerCase().includes('email')) {
-          setErrors({ email: 'An organization with this email already exists' });
-        } else {
-          setErrors({ general: errorMessage });
-        }
-      } else if (errorMessage.toLowerCase().includes('validation')) {
-        setErrors({ general: 'Please check your input and try again' });
-      } else {
-        setErrors({ general: errorMessage });
-      }
+
+      setErrors({ general: errorMessage });
     } finally {
       setLoading(false);
     }
   };
 
-  // Handle add user to organization
-  const handleAddUser = (orgId) => {
-    setSelectedOrgId(orgId);
-    setShowAddUserModal(true);
+  const handleEditOrganization = (organization) => {
+    setOrganizationToEdit(organization);
+    setFormData({
+      company_name: organization.company_name || '',
+      address: organization.address || '',
+      location: organization.location || '',
+      pin_code: organization.pin_code || ''
+    });
+    setShowEditForm(true);
   };
 
-  // Handle view users for organization
-  const handleViewUsers = async (org) => {
+  const handleUpdateOrganization = async () => {
+    if (!validateForm()) {
+      return;
+    }
+
     setLoading(true);
-    
+    setErrors({});
+
     try {
-      // Fetch latest organization data with users
-      const response = await api.organization.getById(org.id);
-      
+      const token = localStorage.getItem('authToken');
+      const response = await api.organization.update(organizationToEdit.id, formData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
       if (response.data) {
         const updatedOrg = response.data.organization || response.data.data || response.data;
-        setSelectedOrganization(updatedOrg);
-        setShowUserManagement(true);
+        const normalizedUpdatedOrg = {
+          ...updatedOrg,
+          users: organizationToEdit.users || [],
+          userCount: organizationToEdit.userCount || 0
+        };
+
+        setOrganizations(prev =>
+          prev.map(org =>
+            org.id === organizationToEdit.id ? normalizedUpdatedOrg : org
+          )
+        );
+
+        resetForm();
+        setShowEditForm(false);
+        setOrganizationToEdit(null);
+        console.log('Organization updated successfully');
       }
     } catch (error) {
-      console.error('Failed to fetch organization details:', error);
-      // Fallback to existing organization data
-      setSelectedOrganization(org);
-      setShowUserManagement(true);
-    } finally {
-      setLoading(false);
-    }
-  };
+      console.error('Failed to update organization:', error);
+      let errorMessage = 'Failed to update organization';
 
-  // Handle user added to organization
-  const handleUserAdded = async (userData) => {
-    if (!selectedOrgId) return;
-
-    setLoading(true);
-    
-    try {
-      // Prepare user data for API
-      const userPayload = {
-        organizationId: selectedOrgId,
-        name: userData.name.trim(),
-        email: userData.email.trim().toLowerCase(),
-        phone: userData.phone?.trim(),
-        employeeId: userData.employeeId?.trim(),
-        role: userData.role,
-        status: 'active'
-      };
-
-      // Add user via API
-      const response = await api.organization.addUser(userPayload);
-      
-      if (response.data) {
-        const newUser = response.data.user || response.data.data || response.data;
-        
-        // Update local organizations state
-        setOrganizations(prev => prev.map(org => 
-          org.id === selectedOrgId 
-            ? { 
-                ...org, 
-                users: [...(org.users || []), {
-                  id: newUser.id,
-                  name: newUser.name,
-                  email: newUser.email,
-                  phone: newUser.phone,
-                  employeeId: newUser.employeeId,
-                  role: newUser.role,
-                  dateAdded: newUser.createdAt || new Date().toISOString(),
-                  status: newUser.status || 'active',
-                  ...newUser
-                }]
-              }
-            : org
-        ));
-        
-        console.log('User added successfully:', newUser);
-      }
-    } catch (error) {
-      console.error('Failed to add user:', error);
-      
-      // Handle API errors - you might want to show a toast notification
-      let errorMessage = 'Failed to add user. Please try again.';
-      
       if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
       } else if (error.response?.data?.error) {
         errorMessage = error.response.data.error;
+      } else if (error.message) {
+        errorMessage = error.message;
       }
-      
-      // You can implement a toast notification here
-      alert(errorMessage);
+
+      setErrors({ general: errorMessage });
     } finally {
       setLoading(false);
     }
-    
-    setShowAddUserModal(false);
-    setSelectedOrgId(null);
   };
 
-  // Handle organization update
-  const handleUpdateOrganization = async (updatedOrganization) => {
+  const handleDeleteOrganization = (organization) => {
+    setOrganizationToDelete(organization);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeleteOrganization = async () => {
+    if (!organizationToDelete) return;
+
+    setDeleteLoading(true);
+
     try {
-      // Update organization via API
-      const response = await api.organization.update(updatedOrganization.id, updatedOrganization);
-      
-      if (response.data) {
-        const updated = response.data.organization || response.data.data || response.data;
-        
-        // Update local state
-        setOrganizations(prev => prev.map(org => 
-          org.id === updated.id ? updated : org
-        ));
-        
-        setSelectedOrganization(updated);
-        console.log('Organization updated successfully:', updated);
-      }
+      const token = localStorage.getItem('authToken');
+      await api.organization.delete(organizationToDelete.id, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      setOrganizations(prev =>
+        prev.filter(org => org.id !== organizationToDelete.id)
+      );
+
+      setShowDeleteModal(false);
+      setOrganizationToDelete(null);
+      console.log('Organization deleted successfully');
     } catch (error) {
-      console.error('Failed to update organization:', error);
-      
-      // Handle error - you might want to show a toast notification
-      let errorMessage = 'Failed to update organization. Please try again.';
-      
+      console.error('Failed to delete organization:', error);
+      let errorMessage = 'Failed to delete organization';
+
       if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
+      } else if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error.message) {
+        errorMessage = error.message;
       }
-      
-      alert(errorMessage);
+
+      setErrors({ delete: errorMessage });
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
-  // Handle back to organizations list
-  const handleBackToOrganizations = () => {
-    setShowUserManagement(false);
-    setSelectedOrganization(null);
+  const handleAddUser = (orgId) => {
+    const organization = organizations.find(org => org.id === orgId);
+    console.log('Selected organization for adding user:', organization);
+    setSelectedOrgId(orgId);
+    setSelectedOrgForUser(organization); // Pass the entire organization object
+    setShowAddUserModal(true);
   };
 
-  // Format date for display
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
+
+
+  const handleViewUsers = async (organization) => {
+    console.log('Viewing users for organization:', organization.company_name);
+    const users = await api.organization.companyId(organization.id);
+
+    const orgWithUsers = {
+      ...organization,
+      users: users || []
+    };
+
+    console.log('Users list for viewing:', users);
+    setSelectedOrganization(orgWithUsers);
+    setShowUserManagement(true);
   };
 
-  // If user management is shown, render the UserManagement component
-  if (showUserManagement && selectedOrganization) {
-    return (
-      <UserManagement
-        organization={selectedOrganization}
-        onBack={handleBackToOrganizations}
-        onUpdateOrganization={handleUpdateOrganization}
-      />
-    );
-  }
+  const handleUserAdded = async (newUser, orgId) => {
+    console.log('User added callback triggered:', { newUser, orgId });
+    await refreshOrganizationUsers(orgId);
+    setShowAddUserModal(false);
+    setSelectedOrgId(null);
+    setSelectedOrgForUser(null);
+    console.log('User added successfully to organization');
+  };
 
-  // Show loading state during initial load
-  if (initialLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <div className="text-center">
-          <FaSpinner className="w-8 h-8 mx-auto mb-4 text-purple-800 animate-spin" />
-          <p className="text-gray-600">Loading organizations...</p>
-        </div>
+  const handleUserUpdate = async (updatedUsers) => {
+    console.log('User update received from UserManagement:', updatedUsers);
+
+    if (selectedOrganization?.id) {
+      await refreshOrganizationUsers(selectedOrganization.id);
+    }
+
+    setSelectedOrganization(prev => ({
+      ...prev,
+      users: updatedUsers || []
+    }));
+
+    console.log(`Organization ${selectedOrganization?.company_name} users updated to ${updatedUsers?.length || 0} users`);
+  };
+
+  const renderLoading = () => (
+    <div className="flex items-center justify-center min-h-screen">
+      <div className="text-center">
+        <FaSpinner className="w-12 h-12 mx-auto mb-4 text-purple-800 animate-spin" />
+        <p className="text-gray-600">Loading organizations...</p>
+        {userDataLoading && (
+          <p className="mt-2 text-sm text-gray-500">Fetching user data...</p>
+        )}
       </div>
-    );
-  }
+    </div>
+  );
 
-  // Show error state if initial fetch failed
-  if (errors.fetch) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <div className="p-8 text-center bg-white rounded-lg shadow-lg">
-          <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-red-100 rounded-full">
-            <FaTimes className="w-8 h-8 text-red-500" />
-          </div>
-          <h2 className="mb-2 text-xl font-bold text-gray-800">Failed to Load Organizations</h2>
-          <p className="mb-4 text-gray-600">{errors.fetch}</p>
-          <button
-            onClick={fetchOrganizations}
-            className="px-6 py-2 text-purple-800 transition-colors bg-white border border-purple-800 rounded-lg hover:bg-purple-100"
-          >
-            Try Again
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const renderUserManagement = () => (
+    <UserManagement
+      organization={selectedOrganization}
+      users={selectedOrganization.users}
+      onBack={() => {
+        setShowUserManagement(false);
+        setSelectedOrganization(null);
+      }}
+      onUserUpdate={handleUserUpdate}
+    />
+  );
 
-  // Main Organizations View
-  return (
+  const renderMainView = () => (
     <div className="flex min-h-screen bg-gray-50">
       <div className="w-full min-h-screen lg:ml-0">
-        <main className="p-0">
+        <main className="p-6">
           <div className="space-y-6">
-            {/* Header */}
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
                 <FaBuilding className="w-8 h-8 text-purple-800" />
@@ -488,269 +462,149 @@ const Organization = ({ userProfile, user, onLogout }) => {
               </button>
             </div>
 
-            {/* Search Bar */}
-            <div className="relative max-w-md">
-              <div className="relative">
-                <FaSearch className="absolute w-4 h-4 text-gray-400 transform -translate-y-1/2 left-3 top-1/2" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={handleSearchChange}
-                  placeholder="Search Organizations..."
-                  className="h-10 p-2 pl-8 text-sm bg-white border border-gray-300 rounded-lg shadow-sm w-100 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                />
-                {searchQuery && (
-                  <button
-                    onClick={clearSearch}
-                    className="absolute p-1 transition-colors transform -translate-y-1/2 rounded-full right-3 top-1/2 hover:bg-gray-100"
-                  >
-                    <FaTimes className="w-3 h-3 text-gray-400" />
-                  </button>
-                )}
-              </div>
-            </div>
+            <SearchBar
+              searchQuery={searchQuery}
+              onSearchChange={handleSearchChange}
+              onClearSearch={clearSearch}
+            />
 
-            {/* Search Results Info */}
-            {searchQuery && (
-              <div className="flex items-center justify-between text-sm text-gray-600">
-                <span>
-                  {filteredOrganizations.length === 0 
-                    ? 'No organizations found' 
-                    : `${filteredOrganizations.length} organization${filteredOrganizations.length !== 1 ? 's' : ''} found`
-                  } for "{searchQuery}"
-                </span>
-                {filteredOrganizations.length > 0 && (
-                  <button
-                    onClick={clearSearch}
-                    className="font-medium text-purple-800 hover:text-purple-600"
-                  >
-                    Clear search
-                  </button>
-                )}
+            {errors.fetch && (
+              <div className="p-2 rounded-lg">
+                <p className="text-sm text-red-600">{errors.fetch}</p>
+                <button
+                  onClick={fetchOrganizations}
+                  className="mt-2 text-sm text-red-800 underline hover:no-underline"
+                >
+                  Try Again
+                </button>
               </div>
             )}
 
-            {/* Organizations List or Empty State */}
-            {filteredOrganizations.length === 0 ? (
-              <div className="py-16 text-center bg-white shadow-lg rounded-xl">
-                {searchQuery ? (
-                  <>
-                    <FaSearch className="w-24 h-24 mx-auto mb-6 text-gray-400" />
-                    <h2 className="mb-4 text-2xl font-bold text-gray-800">No Organizations Found</h2>
-                    <p className="mb-8 text-gray-600">
-                      No organizations match your search for "{searchQuery}"
-                    </p>
-                    <button
-                      onClick={clearSearch}
-                      className="px-8 py-3 mr-4 text-purple-800 transition-colors rounded-lg bg-purple-50 hover:bg-purple-100"
-                    >
-                      Clear Search
-                    </button>
-                    <button
-                      onClick={() => setShowAddForm(true)}
-                      className="px-8 py-3 text-purple-800 transition-colors bg-white border border-purple-800 rounded-lg hover:bg-purple-100"
-                    >
-                      Add New Organization
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <FaBuilding className="w-24 h-24 mx-auto mb-6 text-purple-800" />
-                    <h2 className="mb-4 text-2xl font-bold text-gray-800">No Organizations Registered</h2>
-                    <p className="mb-8 text-gray-600">Get started by adding your first organization</p>
-                    <button
-                      onClick={() => setShowAddForm(true)}
-                      className="px-8 py-3 text-purple-800 transition-colors bg-white border border-purple-800 rounded-lg hover:bg-purple-100"
-                    >
-                      Add Your First Organization
-                    </button>
-                  </>
-                )}
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {filteredOrganizations.map((org) => (
-                  <div key={org.id} className="p-6 transition-shadow bg-white shadow-lg rounded-xl hover:shadow-xl">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center space-x-3">
-                        <div className="flex items-center justify-center w-12 h-12 bg-white border border-purple-800 rounded-lg">
-                          <FaBuilding className="w-6 h-6 text-purple-800" />
-                        </div>
-                        <div>
-                          <h3 className="text-xl font-bold text-gray-800">{org.name}</h3>
-                          <div className="flex items-center mt-1 text-sm text-gray-500">
-                            <FaUsers className="w-3 h-3 mr-1" />
-                            <span>{(org.users || []).length} members</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="mb-6 space-y-3">
-                      <div className="flex items-center text-gray-600">
-                        <FaEnvelope className="w-4 h-4 mr-3 text-purple-500" />
-                        <span className="text-sm">{org.email}</span>
-                      </div>
-                      <div className="flex items-center text-gray-600">
-                        <FaCalendar className="w-4 h-4 mr-3 text-purple-500" />
-                        <span className="text-sm">Est. {formatDate(org.establishedDate)}</span>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <button
-                        onClick={() => handleAddUser(org.id)}
-                        disabled={loading}
-                        className="flex items-center justify-center px-4 py-2 space-x-2 text-purple-800 transition-colors rounded-lg bg-purple-50 hover:bg-purple-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <FaPlus className="w-4 h-4" />
-                        <span>Add User</span>
-                      </button>
-                      
-                      <button
-                        onClick={() => handleViewUsers(org)}
-                        disabled={loading}
-                        className="flex items-center justify-center px-4 py-2 space-x-2 text-purple-800 transition-colors rounded-lg bg-purple-50 hover:bg-purple-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <FaEye className="w-4 h-4" />
-                        <span>View Users</span>
-                      </button>
-                    </div>
-                  </div>
-                ))}
+            {errors.delete && (
+              <div className="p-4 border border-red-300 rounded-lg bg-red-50">
+                <p className="text-sm text-red-600">{errors.delete}</p>
+                <button
+                  onClick={() => setErrors(prev => ({ ...prev, delete: '' }))}
+                  className="mt-2 text-sm text-red-800 underline hover:no-underline"
+                >
+                  Dismiss
+                </button>
               </div>
             )}
+
+            {userDataLoading && (
+              <div className="flex items-center justify-center p-4 bg-white rounded-lg shadow">
+                <FaSpinner className="w-5 h-5 mr-2 text-purple-800 animate-spin" />
+                <span className="text-sm text-gray-600">Loading user data...</span>
+              </div>
+            )}
+
+            <OrganizationList
+              organizations={filteredOrganizations}
+              searchQuery={searchQuery}
+              loading={loading}
+              userDataLoading={userDataLoading}
+              onEditOrganization={handleEditOrganization}
+              onDeleteOrganization={handleDeleteOrganization}
+              onAddUser={handleAddUser}
+              onViewUsers={handleViewUsers}
+            />
           </div>
         </main>
       </div>
 
-      {/* Add Organization Modal */}
       {showAddForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
-          <div className="w-full max-w-md bg-white shadow-2xl rounded-xl">
-            <div className="flex items-center justify-between p-6 border-b">
-              <h2 className="text-xl font-bold text-gray-800">Add New Organization</h2>
-              <button
-                onClick={() => {
-                  setShowAddForm(false);
-                  setFormData({ name: '', email: '', establishedDate: '' });
-                  setErrors({});
-                }}
-                className="p-2 transition-colors rounded-lg hover:bg-gray-100"
-              >
-                <FaTimes className="w-5 h-5 text-gray-500" />
-              </button>
-            </div>
-
-            <div className="p-6">
-              <div className="space-y-4">
-                <div>
-                  <label className="block mb-2 text-sm font-medium text-gray-700">
-                    Organization Name *
-                  </label>
-                  <input
-                    type="text"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleInputChange}
-                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
-                      errors.name ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                    placeholder="Enter organization name"
-                    disabled={loading}
-                  />
-                  {errors.name && (
-                    <p className="mt-1 text-sm text-red-500">{errors.name}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block mb-2 text-sm font-medium text-gray-700">
-                    Official Email *
-                  </label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
-                      errors.email ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                    placeholder="org@example.com"
-                    disabled={loading}
-                  />
-                  {errors.email && (
-                    <p className="mt-1 text-sm text-red-500">{errors.email}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block mb-2 text-sm font-medium text-gray-700">
-                    Established Date *
-                  </label>
-                  <input
-                    type="date"
-                    name="establishedDate"
-                    value={formData.establishedDate}
-                    onChange={handleInputChange}
-                    max={new Date().toISOString().split('T')[0]}
-                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
-                      errors.establishedDate ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                    disabled={loading}
-                  />
-                  {errors.establishedDate && (
-                    <p className="mt-1 text-sm text-red-500">{errors.establishedDate}</p>
-                  )}
-                </div>
-
-                {errors.general && (
-                  <div className="p-3 text-sm text-red-700 bg-red-100 border border-red-300 rounded-lg">
-                    {errors.general}
-                  </div>
-                )}
-              </div>
-
-              <div className="flex mt-6 space-x-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowAddForm(false);
-                    setFormData({ name: '', email: '', establishedDate: '' });
-                    setErrors({});
-                  }}
-                  disabled={loading}
-                  className="flex-1 px-4 py-2 text-gray-700 transition-colors border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleAddOrganization}
-                  disabled={loading}
-                  className="flex items-center justify-center flex-1 px-4 py-2 space-x-2 text-white transition-colors bg-purple-800 rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {loading ? (
-                    <FaSpinner className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <FaPlus className="w-4 h-4" />
-                  )}
-                  <span>Add Organization</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <OrganizationForm
+          formData={formData}
+          errors={errors}
+          loading={loading}
+          onInputChange={handleInputChange}
+          onSubmit={handleAddOrganization}
+          onCancel={() => {
+            setShowAddForm(false);
+            resetForm();
+          }}
+          title="Add New Organization"
+          submitText="Add Organization"
+        />
       )}
 
-      {/* Add User Modal */}
-      {showAddUserModal && (
+      {showEditForm && organizationToEdit && (
+        <OrganizationForm
+          formData={formData}
+          errors={errors}
+          loading={loading}
+          onInputChange={handleInputChange}
+          onSubmit={handleUpdateOrganization}
+          onCancel={() => {
+            setShowEditForm(false);
+            setOrganizationToEdit(null);
+            resetForm();
+          }}
+          title="Edit Organization"
+          submitText="Update Organization"
+        />
+      )}
+
+      {showDeleteModal && organizationToDelete && (
+        <DeleteModal
+          organizationName={organizationToDelete.company_name}
+          onCancel={() => {
+            setShowDeleteModal(false);
+            setOrganizationToDelete(null);
+          }}
+          onConfirm={confirmDeleteOrganization}
+          loading={deleteLoading}
+        />
+      )}
+
+      {showAddUserModal && selectedOrgForUser && (
         <AddUserModal
-          onClose={() => setShowAddUserModal(false)}
+          isOpen={showAddUserModal}
+          onClose={() => {
+            setShowAddUserModal(false);
+            setSelectedOrgId(null);
+            setSelectedOrgForUser(null);
+          }}
+          organization={selectedOrgForUser} // Pass the entire organization object
           onUserAdded={handleUserAdded}
         />
       )}
     </div>
+  );
+
+  const filteredOrganizations = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return organizations;
+    }
+    return organizations.filter(org =>
+      org.company_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      org.location?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      org.address?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      org.pin_code?.includes(searchQuery)
+    );
+  }, [organizations, searchQuery]);
+
+  useEffect(() => {
+    checkAuth();
+  }, [checkAuth]);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchOrganizations();
+    }
+  }, [isAuthenticated]);
+
+  return (
+    <AuthCheck
+      isInitializing={isInitializing}
+      isAuthenticated={isAuthenticated}
+      errors={errors}
+      onLogout={onLogout}
+      renderLoading={renderLoading}
+      renderMain={renderMainView}
+      renderUserManagement={renderUserManagement}
+    />
   );
 };
 
