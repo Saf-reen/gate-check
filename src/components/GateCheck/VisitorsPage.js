@@ -18,7 +18,7 @@ const VisitorsPage = ({ totalVisitors, visitors }) => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Visitors Dashboard Header */}
-      <div className="bg-white border-b border-gray-200">
+      <div className="bg-transparent border-b border-gray-200">
         <div className="px-6 py-4">
           <h1 className="flex items-center text-2xl font-bold text-gray-900">
             <Activity className="w-8 h-8 mr-3 text-purple-800" />
@@ -34,7 +34,7 @@ const VisitorsPage = ({ totalVisitors, visitors }) => {
       <div className="px-6 py-6">
         <div className="grid grid-cols-1 gap-6 mb-8 md:grid-cols-3">
           {/* Total Visitors Card */}
-          {/* <div className="p-6 bg-white border border-gray-200 rounded-lg shadow-sm">
+          {/* <div className="p-6 bg-transparent border border-gray-200 rounded-lg shadow-sm">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Total Visitors Today</p>
@@ -50,7 +50,7 @@ const VisitorsPage = ({ totalVisitors, visitors }) => {
           </div> */}
 
           {/* Walk-in Count Card */}
-          <div className="p-6 bg-white border border-gray-200 rounded-lg shadow-sm">
+          <div className="p-6 bg-transparent border border-gray-200 rounded-lg shadow-sm">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Walk-in Visitors</p>
@@ -66,7 +66,7 @@ const VisitorsPage = ({ totalVisitors, visitors }) => {
           </div>
 
           {/* Schedule Count Card */}
-          <div className="p-6 bg-white border border-gray-200 rounded-lg shadow-sm">
+          <div className="p-6 bg-transparent border border-gray-200 rounded-lg shadow-sm">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Scheduled Visitors</p>
@@ -82,7 +82,7 @@ const VisitorsPage = ({ totalVisitors, visitors }) => {
           </div>
 
           {/* QR Visitor Count Card */}
-          <div className="p-6 bg-white border border-gray-200 rounded-lg shadow-sm">
+          <div className="p-6 bg-transparent border border-gray-200 rounded-lg shadow-sm">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">QR Visitors</p>

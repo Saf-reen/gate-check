@@ -451,7 +451,7 @@ const Organization = ({ userProfile, user, onLogout }) => {
               <button
                 onClick={() => setShowAddForm(true)}
                 disabled={loading}
-                className="flex items-center px-6 py-3 space-x-2 text-purple-800 transition-colors bg-white border border-purple-800 rounded-lg hover:bg-purple-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center px-6 py-3 space-x-2 text-purple-800 transition-colors bg-transparent border border-purple-800 rounded-lg hover:bg-purple-100 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? (
                   <FaSpinner className="w-4 h-4 animate-spin" />
@@ -493,7 +493,7 @@ const Organization = ({ userProfile, user, onLogout }) => {
             )}
 
             {userDataLoading && (
-              <div className="flex items-center justify-center p-4 bg-white rounded-lg shadow">
+              <div className="flex items-center justify-center p-4 bg-transparent rounded-lg shadow">
                 <FaSpinner className="w-5 h-5 mr-2 text-purple-800 animate-spin" />
                 <span className="text-sm text-gray-600">Loading user data...</span>
               </div>

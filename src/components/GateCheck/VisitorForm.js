@@ -14,17 +14,17 @@ const VisitorForm = ({
   user // Add user as a prop
 }) => {
   // Set the default value for the "coming_from" field if it's not already set
-React.useEffect(() => {
-  if (user?.company && !formData.coming_from) {
-    // Instead of calling resetForm, directly call handleInputChange
-    handleInputChange({
-      target: {
-        name: 'coming_from',
-        value: user.company
-      }
-    });
-  }
-}, [user, formData.coming_from, handleInputChange]);
+// React.useEffect(() => {
+//   if (user?.company && !formData.coming_from) {
+//     // Instead of calling resetForm, directly call handleInputChange
+//     handleInputChange({
+//       target: {
+//         name: 'coming_from',
+//         value: user.company
+//       }
+//     });
+//   }
+// }, [user, formData.coming_from, handleInputChange]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
@@ -399,14 +399,14 @@ React.useEffect(() => {
                 setShowAddModal(false);
                 resetForm();
               }}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-transparent border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={submitLoading}
-              className="flex items-center px-4 py-2 text-sm font-medium text-purple-800 bg-white border border-purple-800 rounded-lg hover:bg-purple-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center px-4 py-2 text-sm font-medium text-purple-800 bg-transparent border border-purple-800 rounded-lg hover:bg-purple-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {submitLoading ? (
                 <>

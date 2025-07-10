@@ -40,7 +40,7 @@ const GateCheck = ({ onVisitorCountChange, onVendorCountChange, userCompany, use
     allowing_hours: '8',
     category: '',
     whom_to_meet: '',
-    coming_from:  user.company || '',
+    coming_from: '',
     purpose_of_visit: '',
     belongings_tools: '',
     security_notes: '',

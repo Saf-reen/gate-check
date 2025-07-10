@@ -563,7 +563,7 @@ const AddUserModal = ({ onClose, onUserAdded, organization }) => {
                 type="submit"
                 onClick={handleSubmit}
                 disabled={isSubmitting || loadingCompany || !formData.companyName}
-                className="flex items-center px-4 py-2 text-purple-800 transition-colors bg-white border border-purple-800 rounded-md hover:bg-purple-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center px-4 py-2 text-purple-800 transition-colors bg-transparent border border-purple-800 rounded-md hover:bg-purple-100 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isSubmitting ? (
                   <>

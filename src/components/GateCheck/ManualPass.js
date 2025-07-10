@@ -1,14 +1,24 @@
+// ManualPass.js
 import React from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { X, User, Phone, Mail, Calendar, Clock, Building2, Car, Tag } from 'lucide-react';
 
-const ManualPass = ({ visitor, onClose }) => {
+const ManualPass = () => {
+  const { state } = useLocation();
+  const { visitor, background } = state || {};
+  const navigate = useNavigate();
+
+  if (!visitor) {
+    return <div>No visitor data available.</div>;
+  }
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+    <div className={`fixed inset-0 z-50 flex items-center justify-center ${background === 'dull' ? 'bg-black bg-opacity-50' : ''}`}>
       <div className="p-6 bg-white rounded-lg w-96">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold text-gray-900">Manual Pass</h2>
           <button
-            onClick={onClose}
+            onClick={() => navigate(-1)}
             className="p-2 text-gray-400 hover:text-gray-600"
           >
             <X className="w-5 h-5" />

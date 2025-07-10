@@ -73,6 +73,7 @@ export const api = {
     changePassword: (passwordData) => axiosInstance.post('/login/reset-password/', passwordData),
     updateProfile: (profileData) => axiosInstance.put('/auth/profile/', profileData),
     // validateSession: () => axiosInstance.get('/auth/validate'),
+  
     setup2FA: () => axiosInstance.post('/auth/2fa/setup'),
     verify2FA: (data) => axiosInstance.post('/auth/2fa/verify', data),
   },

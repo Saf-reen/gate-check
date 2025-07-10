@@ -1,10 +1,11 @@
+// QRCode.js
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { X, User, Phone, Mail, Calendar, Clock, Building2, Car, Tag } from 'lucide-react';
 
 const QRCode = () => {
   const { state } = useLocation();
-  const { visitor } = state || {};
+  const { visitor, background } = state || {};
   const navigate = useNavigate();
 
   if (!visitor) {
@@ -12,7 +13,7 @@ const QRCode = () => {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+    <div className={`fixed inset-0 z-50 flex items-center justify-center ${background === 'dull' ? 'bg-black bg-opacity-50' : ''}`}>
       <div className="p-6 bg-white rounded-lg w-96">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold text-gray-900">QR Code Pass</h2>

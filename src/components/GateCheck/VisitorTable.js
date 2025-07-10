@@ -88,11 +88,11 @@ const VisitorTable = ({
       } else if (passType === 'qr') {
         console.log('Navigating to QR Code page');
         // Navigate to QR Code page with visitor data
-        navigate('/qr-code', { state: { visitor: visitorData } });
+        navigate('/qr-pass', { state: { visitor: visitorData } });
       }
     } catch (error) {
       console.error(`Error generating ${passType} pass:`, error);
-      alert(`Failed to generate ${passType === 'manual' ? 'manual' : 'QR'} pass. Please try again.`);
+      alert(`Failed to generate ${passType === 'manual' ? 'manual' : 'qr'} pass. Please try again.`);
     } finally {
       setLoadingActions(prev => ({ ...prev, [`${visitorId}-${passType}`]: false }));
     }
@@ -176,7 +176,7 @@ const VisitorTable = ({
 
   return (
     <div className="px-6 py-4">
-      <div className="overflow-hidden bg-white border border-gray-200 rounded-lg shadow">
+      <div className="overflow-hidden bg-transparent border border-gray-200 rounded-lg shadow">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
@@ -201,7 +201,7 @@ const VisitorTable = ({
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-transparent divide-y divide-gray-200">
               {filteredVisitors.length === 0 ? (
                 <tr>
                   <td colSpan="6" className="px-6 py-12 text-center text-gray-500">

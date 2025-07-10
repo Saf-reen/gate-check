@@ -6,7 +6,7 @@ const decodeJwtToken = (token) => {
   try {
     // Check if token exists
     if (!token || typeof token !== 'string') {
-      throw new Error('Invalid token format');
+      // throw new Error('Invalid token format');
     }
 
     // Decode the JWT token and return the decoded payload
