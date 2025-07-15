@@ -15,6 +15,10 @@ import VendorsPage from './components/GateCheck/VendorsPage';
 import ManualPass from './components/GateCheck/ManualPass';
 import QRCode from './components/GateCheck/QRCode';
 import AddUserModal from './components/Users/AddUserModal';
+import RolesPage from './components/RolesPermissions/Roles/RolesPage';
+import Permissions from './components/RolesPermissions/Permissions/PermissionsPage';
+import RolePermissionsPage from './components/RolesPermissions/RolePermissionsPage';
+import UserRole from './components/Users/Roles/UserRole';
 
 // Configuration for demo/production mode
 const DEMO_MODE = true; // Set to false to enable full authentication
@@ -79,7 +83,6 @@ function App() {
       if (!captchaValue || captchaValue.trim() === '') {
         throw new Error('Please complete the captcha verification');
       }
-
 
       setIsAuthenticated(true);
       setUserProfile(userData);
@@ -197,6 +200,10 @@ function App() {
                         <Route path="/profile" element={<ProfilePage userProfile={userProfile} onLogout={handleLogout} />} />
                         <Route path="/organization" element={<Organization userProfile={userProfile} user={userProfile} onLogout={handleLogout} onOpenAddUserModal={handleOpenAddUserModal} />} />
                         <Route path="/user" element={<UserManagement onOpenAddUserModal={handleOpenAddUserModal} />} />
+                        <Route path="/roles" element={<RolesPage />} />
+                        <Route path="/permissions" element={<Permissions />} />
+                        <Route path="/rolespermissions" element={<RolePermissionsPage />} />
+                        <Route path="/userroles" element={<UserRole userProfile={userProfile} />} />
                         <Route path="/manual-pass" element={<ManualPass />} />
                         <Route path="/qr-pass" element={<QRCode />} />
                         <Route path="/Dashboard" element={<Navigate to="/dashboard" replace />} />
@@ -205,6 +212,7 @@ function App() {
                         <Route path="/ProfilePage" element={<Navigate to="/profile" replace />} />
                         <Route path="/Organization" element={<Navigate to="/organization" replace />} />
                         <Route path="/UserManagement" element={<Navigate to="/user" replace />} />
+                        <Route path="/RolesManagement" element={<Navigate to="/roles" replace />} />
                         <Route path="*" element={<Navigate to="/dashboard" replace />} />
                       </Routes>
                     </div>
