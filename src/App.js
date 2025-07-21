@@ -19,6 +19,8 @@ import RolesPage from './components/RolesPermissions/Roles/RolesPage';
 import Permissions from './components/RolesPermissions/Permissions/PermissionsPage';
 import RolePermissionsPage from './components/RolesPermissions/RolePermissionsPage';
 import UserRole from './components/Users/Roles/UserRole';
+import CategoryPage from './components/GateCheck/Categories/CategoryPage';
+
 
 // Configuration for demo/production mode
 const DEMO_MODE = true; // Set to false to enable full authentication
@@ -206,6 +208,7 @@ function App() {
                         <Route path="/userroles" element={<UserRole userProfile={userProfile} />} />
                         <Route path="/manual-pass" element={<ManualPass />} />
                         <Route path="/qr-pass" element={<QRCode />} />
+                        <Route path="/category" element={<CategoryPage />}/>
                         <Route path="/Dashboard" element={<Navigate to="/dashboard" replace />} />
                         <Route path="/GateCheck" element={<Navigate to="/gatecheck" replace />} />
                         <Route path="/Reports" element={<Navigate to="/reports" replace />} />

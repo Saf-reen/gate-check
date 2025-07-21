@@ -58,6 +58,7 @@ export const api = {
     validateUser: (identifier) => axiosInstance.post('/login/validate/', identifier),
     logout: () => axiosInstance.post('/login/logout/'),
     refreshToken: (refreshToken) => axiosInstance.post('/auth/refresh', { refreshToken }),
+    refreshView: () => axiosInstance.get('/api/auth/refresh/'),
     forgotPassword: (identifier) => axiosInstance.post('/login/otp-request/', identifier),
     verifyOtp: (otpData) => axiosInstance.post('/login/verify-otp/', otpData),
     newPasswod: (newPasswordData) => axiosInstance.post('/login/set-new-password/', newPasswordData),
@@ -108,9 +109,9 @@ export const api = {
   roles:{
     getAll: () => axiosInstance.get('/roles/create/'),
     create: (roleData) => axiosInstance.post('/roles/create/', roleData),
-    update: (roleId, roleData) => axiosInstance.put(`/roles/${roleId}/`, roleData),
-    delete: (roleId) => axiosInstance.delete(`/roles/${roleId}/`),
-    getById: (roleId) => axiosInstance.get(`/roles/${roleId}/`),
+    update: (roleId, roleData) => axiosInstance.put(`/roles/role/${roleId}/`, roleData),
+    delete: (roleId) => axiosInstance.delete(`/roles/role/${roleId}/`),
+    getById: (roleId) => axiosInstance.get(`/roles/role/${roleId}/`),
   },
   permissions:{
     getAll: () => axiosInstance.get('/roles/permissions/'),
@@ -119,7 +120,7 @@ export const api = {
     delete: (permissionId) => axiosInstance.delete(`/roles/permissions/${permissionId}/`),
     getById: (permissionId) => axiosInstance.get(`/roles/permissions/${permissionId}/`),
   },
-  rolePermissions:{
+  rolePermissions: {
     getAll: () => axiosInstance.get('/roles/assign-permissions/'),
     create: (rolePermissionData) => axiosInstance.post('/roles/assign-permissions/', rolePermissionData),
     update: (rolePermissionId, rolePermissionData) => axiosInstance.put(`/roles/assign-permissions/${rolePermissionId}/`, rolePermissionData),
@@ -132,6 +133,14 @@ export const api = {
     update: (userRoleId, userRoleData) => axiosInstance.put(`/roles/user_role/${userRoleId}/`, userRoleData),
     delete: (userRoleId) => axiosInstance.delete(`/user/roles/${userRoleId}/`),
     getById: (userRoleId) => axiosInstance.get(`/user/roles/${userRoleId}/`),
+  },
+  
+  categories: {
+    getAll: () => axiosInstance.get('/visitors/categories/'),
+    create: (visitorData) => axiosInstance.post('/visitors/categories/',visitorData) ,
+    update: (visitorId, visitorData) => axiosInstance.put(`/visitors/categories/${visitorId}/`,visitorData),
+    delete: (visitorId) => axiosInstance.delete(`/visitors/categories/${visitorId}/`),
+    getById: (visitorId) => axiosInstance.get(`visitors/categories/${visitorId}`),
   },
   // Report endpoints
   reports: {

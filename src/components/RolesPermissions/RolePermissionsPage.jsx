@@ -55,6 +55,7 @@ const RolePermissionsPage = () => {
       setError(null);
       const response = await api.rolePermissions.getAll();
       setRolePermissions(response.data);
+      console.log(response);
     } catch (err) {
       console.error('Error fetching role permissions:', err);
       setError('Failed to load role permissions. Please try again.');
@@ -114,18 +115,48 @@ const RolePermissionsPage = () => {
   };
 
   const handleDeleteRolePermission = async (rolePermissionId) => {
+    // Validate the ID
+    if (!rolePermissionId || rolePermissionId === undefined || rolePermissionId === null) {
+      console.error("Invalid role_permission_id for delete:", rolePermissionId);
+      setError("Invalid role permission ID. Unable to delete.");
+      return;
+    }
+
     if (!window.confirm("Are you sure you want to delete this role permission assignment?")) {
       return;
     }
+
     try {
+      console.log(`Attempting to delete role permission with ID: ${rolePermissionId}`);
+
+      // Make sure we're passing the ID correctly to the API
       await api.rolePermissions.delete(rolePermissionId);
-      setRolePermissions(rolePermissions.filter(rp => rp.id !== rolePermissionId));
+
+      // Update the state to remove the deleted item
+      setRolePermissions(prevRolePermissions =>
+        prevRolePermissions.filter(rp => rp.id !== rolePermissionId)
+      );
+
       setError(null);
+      console.log(`Successfully deleted role permission with ID: ${rolePermissionId}`);
+
     } catch (err) {
       console.error('Error deleting role permission:', err);
-      setError(err.response?.data?.message || 'Failed to delete role permission');
+
+      // Handle specific error cases
+      if (err.response?.status === 404) {
+        setError('Role permission not found. It may have already been deleted.');
+      } else if (err.response?.status === 403) {
+        setError('Permission denied. You do not have permission to delete role permissions.');
+      } else {
+        setError(err.response?.data?.error || err.response?.data?.message || 'Failed to delete role permission');
+      }
+
+      // Refresh the data to ensure consistency
+      fetchRolePermissions();
     }
   };
+
 
   const filteredRolePermissions = rolePermissions.filter(rp => {
     const matchesSearch = rp.role.toLowerCase().includes(searchTerm.toLowerCase()) ||

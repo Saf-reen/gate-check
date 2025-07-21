@@ -1,3 +1,4 @@
+// Updated GateCheck component with backend filtering
 import React, { useState, useEffect, useCallback } from 'react';
 import { api } from '../Auth/api';
 import VisitorTable from './VisitorTable';
@@ -29,6 +30,15 @@ const GateCheck = ({ onVisitorCountChange, onVendorCountChange, userCompany, use
   const [showRecurring, setShowRecurring] = useState(false);
   const [errors, setErrors] = useState({});
   const [successMessage, setSuccessMessage] = useState('');
+
+  // Counts for filters
+  const [totalVisitors, setTotalVisitors] = useState(0);
+  const [approvedCount, setApprovedCount] = useState(0);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [rejectedCount, setRejectedCount] = useState(0);
+  const [oneTimeCount, setOneTimeCount] = useState(0);
+  const [recurringCount, setRecurringCount] = useState(0);
+  const [permanentCount, setPermanentCount] = useState(0);
 
   const [formData, setFormData] = useState({
     visitor_name: '',
@@ -83,85 +93,107 @@ const GateCheck = ({ onVisitorCountChange, onVendorCountChange, userCompany, use
     }
   }, []);
 
-  const fetchVisitors = useCallback(async () => {
+  // Fetch visitor counts for filter display
+  const fetchVisitorCounts = useCallback(async () => {
+    try {
+      // Get counts for different statuses and types
+      const [totalResponse, approvedResponse, pendingResponse, rejectedResponse,
+             oneTimeResponse, recurringResponse, permanentResponse] = await Promise.all([
+        api.visitors.getAll({ count_only: true }),
+        api.visitors.getAll({ status: 'APPROVED', count_only: true }),
+        api.visitors.getAll({ status: 'PENDING', count_only: true }),
+        api.visitors.getAll({ status: 'REJECTED', count_only: true }),
+        api.visitors.getAll({ pass_type: 'ONE_TIME', count_only: true }),
+        api.visitors.getAll({ pass_type: 'RECURRING', count_only: true }),
+        api.visitors.getAll({ pass_type: 'PERMANENT', count_only: true })
+      ]);
+
+      setTotalVisitors(totalResponse?.data?.count || 0);
+      setApprovedCount(approvedResponse?.data?.count || 0);
+      setPendingCount(pendingResponse?.data?.count || 0);
+      setRejectedCount(rejectedResponse?.data?.count || 0);
+      setOneTimeCount(oneTimeResponse?.data?.count || 0);
+      setRecurringCount(recurringResponse?.data?.count || 0);
+      setPermanentCount(permanentResponse?.data?.count || 0);
+    } catch (error) {
+      console.error('Error fetching visitor counts:', error);
+    }
+  }, []);
+
+  // Fetch visitors with backend filtering
+  const fetchVisitors = useCallback(async (params = {}) => {
     setLoading(true);
     try {
-      const visitorsResponse = await api.visitors.getAll();
-      if (visitorsResponse && visitorsResponse.data) {
-        const visitorsData = visitorsResponse.data.visitors || visitorsResponse.data;
-        if (Array.isArray(visitorsData)) {
-          setVisitors(visitorsData);
-        } else {
-          setVisitors([]);
-        }
-      } else {
-        setVisitors([]);
-      }
+      // Build filter parameters
+      const filterParams = {
+        ...params,
+        ...(searchTerm && { search: searchTerm }),
+        ...(filterStatus !== 'all' && { status: filterStatus }),
+        ...(filterType !== 'all' && { pass_type: filterType }),
+        ...(filterCategory !== 'all' && { category: filterCategory })
+      };
 
-      try {
-        const recurringResponse = await api.visitors.getRecurring();
+      if (showRecurring) {
+        // Fetch recurring visitors with filters
+        const recurringResponse = await api.visitors.getRecurring(filterParams);
         if (recurringResponse && recurringResponse.data) {
           const recurringData = recurringResponse.data.visitors || recurringResponse.data;
           if (Array.isArray(recurringData)) {
             setRecurringVisitors(recurringData);
+            setFilteredVisitors(recurringData);
           } else {
             setRecurringVisitors([]);
+            setFilteredVisitors([]);
           }
-        } else {
-          setRecurringVisitors([]);
         }
-      } catch (recurringError) {
-        setRecurringVisitors([]);
+      } else {
+        // Fetch regular visitors with filters
+        const visitorsResponse = await api.visitors.getAll(filterParams);
+        if (visitorsResponse && visitorsResponse.data) {
+          const visitorsData = visitorsResponse.data.visitors || visitorsResponse.data;
+          if (Array.isArray(visitorsData)) {
+            setVisitors(visitorsData);
+            setFilteredVisitors(visitorsData);
+          } else {
+            setVisitors([]);
+            setFilteredVisitors([]);
+          }
+        }
       }
     } catch (error) {
       setErrors({ general: 'Failed to load visitors data. Please try again.' });
       setVisitors([]);
       setRecurringVisitors([]);
+      setFilteredVisitors([]);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [searchTerm, filterStatus, filterType, filterCategory, showRecurring]);
 
+  // Effect to fetch data when filters change
   useEffect(() => {
     fetchCategories();
-    fetchVisitors();
-  }, [fetchCategories, fetchVisitors]);
+    fetchVisitorCounts();
+  }, [fetchCategories, fetchVisitorCounts]);
 
   useEffect(() => {
-    const currentVisitors = showRecurring ? recurringVisitors : visitors;
-    let filtered = currentVisitors;
-
-    if (searchTerm) {
-      filtered = filtered.filter(visitor =>
-        visitor.pass_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        visitor.visitor_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        visitor.mobile_number?.includes(searchTerm) ||
-        visitor.email_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        visitor.whom_to_meet?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        visitor.purpose_of_visit?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    if (filterStatus !== 'all') {
-      filtered = filtered.filter(visitor => visitor.status === filterStatus);
-    }
-
-    if (filterType !== 'all') {
-      filtered = filtered.filter(visitor => visitor.pass_type === filterType);
-    }
-
-    if (filterCategory !== 'all') {
-      filtered = filtered.filter(visitor => visitor.category === filterCategory);
-    }
-
-    setFilteredVisitors(filtered);
-  }, [visitors, recurringVisitors, searchTerm, filterStatus, filterType, filterCategory, showRecurring]);
+    fetchVisitors();
+  }, [fetchVisitors]);
 
   useEffect(() => {
     if (onVisitorCountChange) {
-      onVisitorCountChange(visitors.length);
+      onVisitorCountChange(totalVisitors);
     }
-  }, [visitors, onVisitorCountChange]);
+  }, [totalVisitors, onVisitorCountChange]);
+
+  // Debounced search to avoid too many API calls
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      fetchVisitors();
+    }, 500); // 500ms delay
+
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm]);
 
   const validatePhoneNumber = (phone) => {
     const phoneRegex = /^[6-9]\d{9}$/;
@@ -326,13 +358,11 @@ const GateCheck = ({ onVisitorCountChange, onVendorCountChange, userCompany, use
       }
 
       if (response && response.data) {
-        const newVisitor = response.data.visitor || response.data;
-        if (formData.pass_type === 'RECURRING') {
-          setRecurringVisitors(prev => [newVisitor, ...prev]);
-        } else {
-          setVisitors(prev => [newVisitor, ...prev]);
-        }
         setSuccessMessage(`Visitor ${formData.pass_type === 'RECURRING' ? 'recurring pass' : ''} added successfully!`);
+        
+        // Refresh data after adding
+        fetchVisitors();
+        fetchVisitorCounts();
 
         setTimeout(() => {
           setShowAddModal(false);
@@ -373,32 +403,51 @@ const GateCheck = ({ onVisitorCountChange, onVendorCountChange, userCompany, use
     }
   };
 
-  const handleVisitorUpdate = (visitorId, newStatus, actionType) => {
-    setVisitors(prev => prev.map(visitor =>
-      visitor.id === visitorId
-        ? {
-            ...visitor,
-            status: newStatus,
-            ...(actionType === 'checkin' && { entry_time: new Date().toISOString() }),
-            ...(actionType === 'checkout' && { exit_time: new Date().toISOString() }),
-            ...(actionType === 'approve' && { approved_time: new Date().toISOString() }),
-            ...(actionType === 'reject' && { rejected_time: new Date().toISOString() })
-          }
-        : visitor
-    ));
+  const handleVisitorUpdate = async (visitorId, newStatus, actionType) => {
+    try {
+      // Update visitor status via API
+      await api.visitors.updateStatus(visitorId, { 
+        status: newStatus,
+        action_type: actionType 
+      });
+      
+      // Refresh data after update
+      fetchVisitors();
+      fetchVisitorCounts();
+    } catch (error) {
+      setErrors({ general: 'Failed to update visitor status. Please try again.' });
+    }
+  };
 
-    setRecurringVisitors(prev => prev.map(visitor =>
-      visitor.id === visitorId
-        ? {
-            ...visitor,
-            status: newStatus,
-            ...(actionType === 'checkin' && { entry_time: new Date().toISOString() }),
-            ...(actionType === 'checkout' && { exit_time: new Date().toISOString() }),
-            ...(actionType === 'approve' && { approved_time: new Date().toISOString() }),
-            ...(actionType === 'reject' && { rejected_time: new Date().toISOString() })
-          }
-        : visitor
-    ));
+  // Filter handlers that trigger API calls
+  const handleFilterStatusChange = (newStatus) => {
+    setFilterStatus(newStatus);
+    // fetchVisitors will be called by useEffect
+  };
+
+  const handleFilterTypeChange = (newType) => {
+    setFilterType(newType);
+    // fetchVisitors will be called by useEffect
+  };
+
+  const handleFilterCategoryChange = (newCategory) => {
+    setFilterCategory(newCategory);
+    // fetchVisitors will be called by useEffect
+  };
+
+  const handleClearFilters = () => {
+    setFilterStatus('all');
+    setFilterType('all');
+    setFilterCategory('all');
+    setSearchTerm('');
+    // fetchVisitors will be called by useEffect
+  };
+
+  const handleRecurringToggle = (newShowRecurring) => {
+    setShowRecurring(newShowRecurring);
+    // Clear current data and fetch new data
+    setFilteredVisitors([]);
+    // fetchVisitors will be called by useEffect
   };
 
   const getStatusColor = (status) => {
@@ -439,35 +488,36 @@ const GateCheck = ({ onVisitorCountChange, onVendorCountChange, userCompany, use
     return category ? category.name : categoryValue;
   };
 
-  const exportToExcel = () => {
-    const dataToExport = showRecurring ? recurringVisitors : visitors;
-    const headers = ['Name', 'Phone', 'Email', 'Status', 'Pass Type', 'Category', 'Visiting Date', 'Purpose', 'Whom to Meet', 'Coming From', 'Vehicle Type'];
-    const csvContent = [
-      headers.join(','),
-      ...dataToExport.map(visitor => [
-        `"${visitor.visitor_name || ''}"`,
-        `"${visitor.mobile_number || ''}"`,
-        `"${visitor.email_id || ''}"`,
-        `"${visitor.status || ''}"`,
-        `"${getPassTypeLabel(visitor.pass_type)}"`,
-        `"${getCategoryLabel(visitor.category)}"`,
-        `"${visitor.visiting_date || ''}"`,
-        `"${visitor.purpose_of_visit || ''}"`,
-        `"${visitor.whom_to_meet || ''}"`,
-        `"${visitor.coming_from || ''}"`,
-        `"${visitor.vehicle_type || ''}"`
-      ].join(','))
-    ].join('\n');
+  const exportToExcel = async () => {
+    try {
+      // Request backend to generate Excel file with current filters
+      const filterParams = {
+        ...(searchTerm && { search: searchTerm }),
+        ...(filterStatus !== 'all' && { status: filterStatus }),
+        ...(filterType !== 'all' && { pass_type: filterType }),
+        ...(filterCategory !== 'all' && { category: filterCategory }),
+        export: 'excel'
+      };
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `${showRecurring ? 'recurring_' : ''}visitors_${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+      const response = showRecurring 
+        ? await api.visitors.exportRecurring(filterParams)
+        : await api.visitors.export(filterParams);
+      
+      // Handle file download
+      if (response && response.data) {
+        const blob = new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `${showRecurring ? 'recurring_' : ''}visitors_${new Date().toISOString().split('T')[0]}.xlsx`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+    } catch (error) {
+      setErrors({ general: 'Failed to export data. Please try again.' });
+    }
     setShowExcelDropdown(false);
   };
 
@@ -480,6 +530,7 @@ const GateCheck = ({ onVisitorCountChange, onVendorCountChange, userCompany, use
         const response = await api.visitors.uploadExcel(formData);
         if (response && response.data) {
           fetchVisitors();
+          fetchVisitorCounts();
           setSuccessMessage('Visitors uploaded successfully!');
         }
       } catch (error) {
@@ -520,30 +571,34 @@ const GateCheck = ({ onVisitorCountChange, onVendorCountChange, userCompany, use
       )}
       <Header
         showRecurring={showRecurring}
-        setShowRecurring={setShowRecurring}
+        setShowRecurring={handleRecurringToggle}
         setShowAddModal={setShowAddModal}
         showFilterDropdown={showFilterDropdown}
         setShowFilterDropdown={setShowFilterDropdown}
         filterStatus={filterStatus}
-        setFilterStatus={setFilterStatus}
+        setFilterStatus={handleFilterStatusChange}
         filterType={filterType}
-        setFilterType={setFilterType}
+        setFilterType={handleFilterTypeChange}
         filterCategory={filterCategory}
-        setFilterCategory={setFilterCategory}
+        setFilterCategory={handleFilterCategoryChange}
         categories={categories}
         showExcelDropdown={showExcelDropdown}
         setShowExcelDropdown={setShowExcelDropdown}
         handleFileUpload={handleFileUpload}
         exportToExcel={exportToExcel}
-        totalVisitors={visitors.length}
-        approvedCount={visitors.filter(v => v.status === 'APPROVED').length}
-        pendingCount={visitors.filter(v => v.status === 'PENDING').length}
-        rejectedCount={visitors.filter(v => v.status === 'REJECTED').length}
-        oneTimeCount={visitors.filter(v => v.pass_type === 'ONE_TIME').length}
-        recurringCount={visitors.filter(v => v.pass_type === 'RECURRING').length}
-        permanentCount={visitors.filter(v => v.pass_type === 'PERMANENT').length}
+        totalVisitors={totalVisitors}
+        approvedCount={approvedCount}
+        pendingCount={pendingCount}
+        rejectedCount={rejectedCount}
+        oneTimeCount={oneTimeCount}
+        recurringCount={recurringCount}
+        permanentCount={permanentCount}
+        onClearFilters={handleClearFilters}
       />
-      <SearchBar searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
+      <SearchBar 
+        searchTerm={searchTerm} 
+        setSearchTerm={setSearchTerm}
+      />
       <VisitorTable
         filteredVisitors={filteredVisitors}
         showRecurring={showRecurring}

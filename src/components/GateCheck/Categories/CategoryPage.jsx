@@ -1,134 +1,124 @@
 import React, { useState, useEffect } from "react";
-import { Plus, Loader, Users, Search, RefreshCw } from "lucide-react";
+import { Plus, Loader, FolderOpen, Search, RefreshCw } from "lucide-react";
 import { api } from '../../Auth/api';
-import RoleTable from './RoleTable';
-import RoleModal from './RoleModal';
+import CategoryTable from './CategoryTable';
+import CategoryModal from './CategoryModal';
 import AlertMessage from './AlertMessage';
 import StatsCards from './StatsCards';
 
-const RolesPage = () => {
-  const [roles, setRoles] = useState([]);
+const CategoryPage = () => {
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [selectedRole, setSelectedRole] = useState(null);
+  const [selectedCategory, setSelectedCategory] = useState(null);
   const [filterActive, setFilterActive] = useState("all");
   const [submitting, setSubmitting] = useState(false);
-  const [newRole, setNewRole] = useState({
+  const [newCategory, setNewCategory] = useState({
     name: "",
+    description: "",
     is_active: true
   });
-  
-  // Get fresh token each time to avoid stale token issues
-  const getConfig = () => {
-    const token = localStorage.getItem('authtoken');
-    return {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    };
-  };
 
   useEffect(() => {
-    fetchRoles();
+    fetchCategories();
   }, []);
 
-  const fetchRoles = async () => {
+  const fetchCategories = async () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await api.roles.getAll(getConfig());
-      setRoles(response.data);
+      const response = await api.categories.getAll();
+      setCategories(response.data);
+      console.log(response.data);
     } catch (err) {
-      console.error('Error fetching roles:', err);
-      setError('Failed to load roles. Please try again.');
+      console.error('Error fetching categories:', err);
+      setError('Failed to load categories. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAddRole = async () => {
-    if (!newRole.name.trim()) {
-      alert('Please enter a role name');
+  const handleAddCategory = async () => {
+    if (!newCategory.name.trim()) {
+      alert('Please enter a category name');
       return;
     }
     try {
       setSubmitting(true);
-      const response = await api.roles.create(newRole, getConfig());
-      setRoles([...roles, response.data]);
-      setNewRole({ name: "", is_active: true });
+      const response = await api.categories.create(newCategory);
+      setCategories([...categories, response.data]);
+      setNewCategory({ name: "", description: "", is_active: true });
       setShowAddModal(false);
       setError(null);
     } catch (err) {
-      console.error('Error creating role:', err);
-      setError(err.response?.data?.message || 'Failed to create role');
+      console.error('Error creating category:', err);
+      setError(err.response?.data?.message || 'Failed to create category');
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleEditRole = async () => {
-    if (!selectedRole || !selectedRole.name.trim()) {
-      alert('Please enter a role name');
+  const handleEditCategory = async () => {
+    if (!selectedCategory || !selectedCategory.name.trim()) {
+      alert('Please enter a category name');
       return;
     }
     try {
       setSubmitting(true);
-      // Make sure to pass the config with fresh token
-      const response = await api.roles.update(selectedRole.role_id, selectedRole, getConfig());
-      setRoles(roles.map(role =>
-        role.role_id === selectedRole.role_id ? response.data : role
+      const response = await api.categories.update(selectedCategory.id, selectedCategory);
+      setCategories(categories.map(category =>
+        category.id === selectedCategory.id ? response.data : category
       ));
       setShowEditModal(false);
-      setSelectedRole(null);
+      setSelectedCategory(null);
       setError(null);
     } catch (err) {
-      console.error('Error updating role:', err);
-      setError(err.response?.data?.message || 'Failed to update role');
+      console.error('Error updating category:', err);
+      setError(err.response?.data?.message || 'Failed to update category');
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleDeleteRole = async (roleId) => {
-    if (!window.confirm("Are you sure you want to delete this role?")) {
+  const handleDeleteCategory = async (categoryId) => {
+    if (!window.confirm("Are you sure you want to delete this category?")) {
       return;
     }
     try {
-      // Make sure to pass the config with fresh token
-      await api.roles.delete(roleId, getConfig());
-      setRoles(roles.filter(role => role.role_id !== roleId));
+      await api.categories.delete(categoryId);
+      setCategories(categories.filter(category => category.id !== categoryId));
       setError(null);
     } catch (err) {
-      console.error('Error deleting role:', err);
-      setError(err.response?.data?.message || 'Failed to delete role');
+      console.error('Error deleting category:', err);
+      setError(err.response?.data?.message || 'Failed to delete category');
     }
   };
 
-  const toggleRoleStatus = async (roleId) => {
-    const role = roles.find(r => r.role_id === roleId);
-    if (!role) return;
+  const toggleCategoryStatus = async (categoryId) => {
+    const category = categories.find(c => c.id === categoryId);
+    if (!category) return;
     try {
-      const updatedRole = { ...role, is_active: !role.is_active };
-      // Make sure to pass the config with fresh token
-      const response = await api.roles.update(roleId, updatedRole, getConfig());
-      setRoles(roles.map(r =>
-        r.role_id === roleId ? response.data : r
+      const updatedCategory = { ...category, is_active: !category.is_active };
+      const response = await api.categories.update(categoryId, updatedCategory);
+      setCategories(categories.map(c =>
+        c.id === categoryId ? response.data : c
       ));
       setError(null);
     } catch (err) {
-      console.error('Error updating role status:', err);
-      setError(err.response?.data?.message || 'Failed to update role status');
+      console.error('Error updating category status:', err);
+      setError(err.response?.data?.message || 'Failed to update category status');
     }
   };
 
-  const filteredRoles = roles.filter(role => {
-    const matchesSearch = role.name.toLowerCase().includes(searchTerm.toLowerCase());
+  const filteredCategories = categories.filter(category => {
+    const matchesSearch = category.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         category.description.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesFilter = filterActive === "all" ||
-                         (filterActive === "active" && role.is_active) ||
-                         (filterActive === "inactive" && !role.is_active);
+                         (filterActive === "active" && category.is_active) ||
+                         (filterActive === "inactive" && !category.is_active);
     return matchesSearch && matchesFilter;
   });
 
@@ -137,7 +127,7 @@ const RolesPage = () => {
       <div className="flex items-center justify-center min-h-screen p-6 bg-gray-50">
         <div className="text-center">
           <Loader className="mx-auto mb-4 text-purple-600 animate-spin" size={48} />
-          <p className="text-gray-600">Loading roles...</p>
+          <p className="text-gray-600">Loading categories...</p>
         </div>
       </div>
     );
@@ -150,24 +140,24 @@ const RolesPage = () => {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="flex items-center gap-2 text-3xl font-bold text-gray-900">
-                <Users className="text-purple-600" size={32} />
-                Roles Management
+                <FolderOpen className="text-purple-600" size={32} />
+                Categories Management
               </h1>
-              <p className="mt-1 text-gray-600">Manage user roles and permissions</p>
+              <p className="mt-1 text-gray-600">Manage visitor categories and types</p>
             </div>
             <button
               onClick={() => setShowAddModal(true)}
               className="flex items-center gap-2 p-2 text-purple-800 transition-colors bg-transparent border border-purple-800 rounded-lg hover:bg-purple-100"
             >
               <Plus size={20} />
-              Add Role
+              Add Category
             </button>
           </div>
         </div>
 
         <AlertMessage message={error} type="error" />
 
-        <StatsCards roles={roles} />
+        <StatsCards categories={categories} />
 
         <div className="p-2 mb-6 bg-white border rounded-lg shadow-sm">
           <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
@@ -176,7 +166,7 @@ const RolesPage = () => {
                 <Search className="absolute text-gray-400 transform -translate-y-1/2 left-3 top-1/2" size={15} />
                 <input
                   type="text"
-                  placeholder="Search roles..."
+                  placeholder="Search categories..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="p-2 pl-8 text-sm border border-gray-300 outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
@@ -187,13 +177,13 @@ const RolesPage = () => {
                 onChange={(e) => setFilterActive(e.target.value)}
                 className="p-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               >
-                <option value="all">All Roles</option>
+                <option value="all">All Categories</option>
                 <option value="active">Active Only</option>
                 <option value="inactive">Inactive Only</option>
               </select>
             </div>
             <button
-              onClick={fetchRoles}
+              onClick={fetchCategories}
               className="flex items-center px-3 py-2 text-purple-600 rounded-lg bg-purple-50 hover:bg-purple-100 disabled:opacity-50"
             >
               <RefreshCw className='w-4 h-4 mr-2' />
@@ -202,31 +192,31 @@ const RolesPage = () => {
           </div>
         </div>
 
-        <RoleTable
-          roles={filteredRoles}
-          onEdit={setSelectedRole}
+        <CategoryTable
+          categories={filteredCategories}
+          onEdit={setSelectedCategory}
           onShowEditModal={setShowEditModal}
-          onToggleStatus={toggleRoleStatus}
-          onDelete={handleDeleteRole}
+          onToggleStatus={toggleCategoryStatus}
+          onDelete={handleDeleteCategory}
         />
 
-        <RoleModal
+        <CategoryModal
           isOpen={showAddModal}
           onClose={() => setShowAddModal(false)}
-          title="Add New Role"
-          role={newRole}
-          onChange={setNewRole}
-          onSubmit={handleAddRole}
+          title="Add New Category"
+          category={newCategory}
+          onChange={setNewCategory}
+          onSubmit={handleAddCategory}
           submitting={submitting}
         />
 
-        <RoleModal
+        <CategoryModal
           isOpen={showEditModal}
           onClose={() => setShowEditModal(false)}
-          title="Edit Role"
-          role={selectedRole}
-          onChange={setSelectedRole}
-          onSubmit={handleEditRole}
+          title="Edit Category"
+          category={selectedCategory}
+          onChange={setSelectedCategory}
+          onSubmit={handleEditCategory}
           submitting={submitting}
         />
       </div>
@@ -234,4 +224,4 @@ const RolesPage = () => {
   );
 };
 
-export default RolesPage;
+export default CategoryPage;
