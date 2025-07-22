@@ -219,7 +219,7 @@ const AddUserModal = ({ onClose, onUserAdded, organization }) => {
         alias_name: formData.aliasname.trim() || null,
         block: formData.blockBuilding.trim() || null,
         floor: formData.floor.trim() || null,
-        role: formData.role // Include role in user data
+        role: formData.role_id // Include role in user data
       };
       console.log('Submitting user data:', userData);
       const response = await api.organization.addUser(userData, {

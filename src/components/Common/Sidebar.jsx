@@ -122,7 +122,7 @@ const Sidebar = ({
           >
             <div className="flex items-center space-x-3">
               {section.icon}
-              <span className="flex-grow font-medium text-left">{section.title}</span>
+              <span className="flex-grow text-sm text-left">{section.title}</span>
             </div>
             {openDropdown === section.id ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
           </button>
@@ -136,7 +136,7 @@ const Sidebar = ({
                     onClick={() => handleSectionClick(dropdownItem)}
                     className={`w-full flex items-center space-x-3 px-3 py-2 rounded-md text-left transition-colors duration-200 ${dropdownItemActive ? "border-solid border-2 border-purple-800 text-white" : "text-slate-300 hover:bg-slate-700 hover:text-white"}`}
                   >{dropdownItem.icon}
-                    <span className="flex-grow font-medium text-left">{dropdownItem.title}</span>
+                    <span className="flex-grow text-sm text-left">{dropdownItem.title}</span>
                     {dropdownItemActive && <span className="w-[5px] h-[5px] bg-purple-800 rounded-full"></span>}
                   </button>
                 );
@@ -162,7 +162,7 @@ const Sidebar = ({
       <div key={section.id}>
         <button onClick={() => handleSectionClick(section)} className={linkClasses}>
           {section.icon}
-          <span className="flex-grow font-medium text-left">{section.title}</span>
+          <span className="flex-grow text-sm text-left">{section.title}</span>
           {isActive && <span className="w-[5px] h-[5px] bg-purple-800 rounded-full"></span>}
         </button>
       </div>

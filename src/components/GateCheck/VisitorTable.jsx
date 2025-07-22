@@ -35,6 +35,7 @@ const VisitorTable = ({
 
   const handleStatusUpdate = async (visitorId, newStatus, actionType) => {
     setLoadingActions(prev => ({ ...prev, [`${visitorId}-${actionType}`]: true }));
+
     try {
       let response;
       switch (actionType) {
@@ -54,15 +55,21 @@ const VisitorTable = ({
           throw new Error(`Unknown action type: ${actionType}`);
       }
 
-      if (onVisitorUpdate) {
-        onVisitorUpdate(visitorId, newStatus, actionType);
+      if (response && response.data) {
+        if (onVisitorUpdate) {
+          onVisitorUpdate(visitorId, newStatus, actionType);
+        }
+      } else {
+        throw new Error('No response data received');
       }
     } catch (error) {
+      console.error(`Failed to ${actionType} visitor:`, error);
       alert(`Failed to ${actionType} visitor. Please try again.`);
     } finally {
       setLoadingActions(prev => ({ ...prev, [`${visitorId}-${actionType}`]: false }));
     }
   };
+
 
   const handlePassGeneration = async (visitorId, passType) => {
     setLoadingActions(prev => ({ ...prev, [`${visitorId}-${passType}`]: true }));

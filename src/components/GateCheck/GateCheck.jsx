@@ -1,4 +1,3 @@
-// Updated GateCheck component with backend filtering
 import React, { useState, useEffect, useCallback } from 'react';
 import { api } from '../Auth/api';
 import VisitorTable from './VisitorTable';
@@ -6,12 +5,9 @@ import VisitorForm from './VisitorForm';
 import Header from './Header';
 import SearchBar from './SearchBar';
 import {
-  Search, Filter, FileText, Plus, MoreVertical, Phone, Clock, User, Users,
-  Upload, Download, ChevronDown, Calendar, MapPin, Car, Mail, Building2,
-  Loader2, AlertCircle, CheckCircle, Tag
+  Loader2, AlertCircle, CheckCircle
 } from 'lucide-react';
-
-const GateCheck = ({ onVisitorCountChange, onVendorCountChange, userCompany, user }) => {
+const GateCheck = ({ onVisitorCountChange, userCompany, user }) => {
   const [visitors, setVisitors] = useState([]);
   const [vendors, setVendors] = useState([]);
   const [recurringVisitors, setRecurringVisitors] = useState([]);
@@ -30,7 +26,6 @@ const GateCheck = ({ onVisitorCountChange, onVendorCountChange, userCompany, use
   const [showRecurring, setShowRecurring] = useState(false);
   const [errors, setErrors] = useState({});
   const [successMessage, setSuccessMessage] = useState('');
-
   // Counts for filters
   const [totalVisitors, setTotalVisitors] = useState(0);
   const [approvedCount, setApprovedCount] = useState(0);
@@ -39,7 +34,6 @@ const GateCheck = ({ onVisitorCountChange, onVendorCountChange, userCompany, use
   const [oneTimeCount, setOneTimeCount] = useState(0);
   const [recurringCount, setRecurringCount] = useState(0);
   const [permanentCount, setPermanentCount] = useState(0);
-
   const [formData, setFormData] = useState({
     visitor_name: '',
     mobile_number: '',
@@ -60,13 +54,13 @@ const GateCheck = ({ onVisitorCountChange, onVendorCountChange, userCompany, use
     vehicle_number: '',
     valid_until: ''
   });
-
   const fetchCategories = useCallback(async () => {
     setCategoriesLoading(true);
     try {
       const response = await api.visitors.category();
       if (response && response.data) {
         const categoriesData = response.data.categories || response.data;
+        console.log(categoriesData);
         if (Array.isArray(categoriesData)) {
           setCategories(categoriesData);
         } else {
@@ -76,55 +70,68 @@ const GateCheck = ({ onVisitorCountChange, onVendorCountChange, userCompany, use
         setCategories([]);
       }
     } catch (error) {
-      setCategories([
-        { id: 1, name: 'Business', value: 'BUSINESS' },
-        { id: 2, name: 'Personal', value: 'PERSONAL' },
-        { id: 3, name: 'Official', value: 'OFFICIAL' },
-        { id: 4, name: 'Delivery', value: 'DELIVERY' },
-        { id: 5, name: 'Maintenance', value: 'MAINTENANCE' },
-        { id: 6, name: 'Interview', value: 'INTERVIEW' },
-        { id: 7, name: 'Meeting', value: 'MEETING' },
-        { id: 8, name: 'Training', value: 'TRAINING' },
-        { id: 9, name: 'Event', value: 'EVENT' },
-        { id: 10, name: 'Other', value: 'OTHER' }
-      ]);
+      console.error('Error fetching categories:', error);
+      setCategories([]);
     } finally {
       setCategoriesLoading(false);
     }
   }, []);
-
-  // Fetch visitor counts for filter display
   const fetchVisitorCounts = useCallback(async () => {
     try {
-      // Get counts for different statuses and types
-      const [totalResponse, approvedResponse, pendingResponse, rejectedResponse,
-             oneTimeResponse, recurringResponse, permanentResponse] = await Promise.all([
-        api.visitors.getAll({ count_only: true }),
-        api.visitors.getAll({ status: 'APPROVED', count_only: true }),
-        api.visitors.getAll({ status: 'PENDING', count_only: true }),
-        api.visitors.getAll({ status: 'REJECTED', count_only: true }),
-        api.visitors.getAll({ pass_type: 'ONE_TIME', count_only: true }),
-        api.visitors.getAll({ pass_type: 'RECURRING', count_only: true }),
-        api.visitors.getAll({ pass_type: 'PERMANENT', count_only: true })
-      ]);
-
-      setTotalVisitors(totalResponse?.data?.count || 0);
-      setApprovedCount(approvedResponse?.data?.count || 0);
-      setPendingCount(pendingResponse?.data?.count || 0);
-      setRejectedCount(rejectedResponse?.data?.count || 0);
-      setOneTimeCount(oneTimeResponse?.data?.count || 0);
-      setRecurringCount(recurringResponse?.data?.count || 0);
-      setPermanentCount(permanentResponse?.data?.count || 0);
+      const baseParams = {
+        ...(searchTerm && { search: searchTerm }),
+        ...(filterCategory !== 'all' && { category: filterCategory })
+      };
+      if (showRecurring) {
+        const totalResponse = await api.visitors.filterPassType({
+          ...baseParams,
+          count_only: true
+        });
+        setTotalVisitors(totalResponse?.data?.count || 0);
+        setApprovedCount(0);
+        setPendingCount(0);
+        setRejectedCount(0);
+        const [oneTimeResponse, recurringResponse, permanentResponse] = await Promise.all([
+          api.visitors.filterPassType({ ...baseParams, pass_type: 'ONE_TIME', count_only: true }),
+          api.visitors.filterPassType({ ...baseParams, pass_type: 'RECURRING', count_only: true }),
+          api.visitors.filterPassType({ ...baseParams, pass_type: 'PERMANENT', count_only: true })
+        ]);
+        setOneTimeCount(oneTimeResponse?.data?.count || 0);
+        setRecurringCount(recurringResponse?.data?.count || 0);
+        setPermanentCount(permanentResponse?.data?.count || 0);
+      } else {
+        const [totalResponse, approvedResponse, pendingResponse, rejectedResponse,
+              oneTimeResponse, recurringResponse, permanentResponse] = await Promise.all([
+          api.visitors.filterStatus({ ...baseParams, count_only: true }),
+          api.visitors.filterStatus({ ...baseParams, status: 'APPROVED', count_only: true }),
+          api.visitors.filterStatus({ ...baseParams, status: 'PENDING', count_only: true }),
+          api.visitors.filterStatus({ ...baseParams, status: 'REJECTED', count_only: true }),
+          api.visitors.filterPassType({ ...baseParams, pass_type: 'ONE_TIME', count_only: true }),
+          api.visitors.filterPassType({ ...baseParams, pass_type: 'RECURRING', count_only: true }),
+          api.visitors.filterPassType({ ...baseParams, pass_type: 'PERMANENT', count_only: true })
+        ]);
+        setTotalVisitors(totalResponse?.data?.count || 0);
+        setApprovedCount(approvedResponse?.data?.count || 0);
+        setPendingCount(pendingResponse?.data?.count || 0);
+        setRejectedCount(rejectedResponse?.data?.count || 0);
+        setOneTimeCount(oneTimeResponse?.data?.count || 0);
+        setRecurringCount(recurringResponse?.data?.count || 0);
+        setPermanentCount(permanentResponse?.data?.count || 0);
+      }
     } catch (error) {
       console.error('Error fetching visitor counts:', error);
+      setTotalVisitors(0);
+      setApprovedCount(0);
+      setPendingCount(0);
+      setRejectedCount(0);
+      setOneTimeCount(0);
+      setRecurringCount(0);
+      setPermanentCount(0);
     }
-  }, []);
-
-  // Fetch visitors with backend filtering
+  }, [searchTerm, filterCategory, showRecurring]);
   const fetchVisitors = useCallback(async (params = {}) => {
     setLoading(true);
     try {
-      // Build filter parameters
       const filterParams = {
         ...params,
         ...(searchTerm && { search: searchTerm }),
@@ -132,9 +139,7 @@ const GateCheck = ({ onVisitorCountChange, onVendorCountChange, userCompany, use
         ...(filterType !== 'all' && { pass_type: filterType }),
         ...(filterCategory !== 'all' && { category: filterCategory })
       };
-
       if (showRecurring) {
-        // Fetch recurring visitors with filters
         const recurringResponse = await api.visitors.getRecurring(filterParams);
         if (recurringResponse && recurringResponse.data) {
           const recurringData = recurringResponse.data.visitors || recurringResponse.data;
@@ -147,8 +152,8 @@ const GateCheck = ({ onVisitorCountChange, onVendorCountChange, userCompany, use
           }
         }
       } else {
-        // Fetch regular visitors with filters
         const visitorsResponse = await api.visitors.getAll(filterParams);
+        console.log('Visitors Response:', visitorsResponse);
         if (visitorsResponse && visitorsResponse.data) {
           const visitorsData = visitorsResponse.data.visitors || visitorsResponse.data;
           if (Array.isArray(visitorsData)) {
@@ -169,32 +174,24 @@ const GateCheck = ({ onVisitorCountChange, onVendorCountChange, userCompany, use
       setLoading(false);
     }
   }, [searchTerm, filterStatus, filterType, filterCategory, showRecurring]);
-
-  // Effect to fetch data when filters change
   useEffect(() => {
     fetchCategories();
     fetchVisitorCounts();
   }, [fetchCategories, fetchVisitorCounts]);
-
   useEffect(() => {
     fetchVisitors();
   }, [fetchVisitors]);
-
   useEffect(() => {
     if (onVisitorCountChange) {
       onVisitorCountChange(totalVisitors);
     }
   }, [totalVisitors, onVisitorCountChange]);
-
-  // Debounced search to avoid too many API calls
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       fetchVisitors();
-    }, 500); // 500ms delay
-
+    }, 500);
     return () => clearTimeout(timeoutId);
   }, [searchTerm]);
-
   const validatePhoneNumber = (phone) => {
     const phoneRegex = /^[6-9]\d{9}$/;
     if (!phone.trim()) {
@@ -205,7 +202,6 @@ const GateCheck = ({ onVisitorCountChange, onVendorCountChange, userCompany, use
     }
     return { isValid: true, error: null };
   };
-
   const validateEmail = (email) => {
     if (!email.trim()) {
       return { isValid: false, error: 'Please enter email address' };
@@ -216,25 +212,20 @@ const GateCheck = ({ onVisitorCountChange, onVendorCountChange, userCompany, use
     }
     return { isValid: true, error: null };
   };
-
   const validateRequired = (value, fieldName) => {
     if (!value.trim()) {
       return { isValid: false, error: `Please enter ${fieldName}` };
     }
     return { isValid: true, error: null };
   };
-
   const validateForm = () => {
     const newErrors = {};
     const nameValidation = validateRequired(formData.visitor_name, 'visitor name');
     if (!nameValidation.isValid) newErrors.visitor_name = nameValidation.error;
-
     const phoneValidation = validatePhoneNumber(formData.mobile_number);
     if (!phoneValidation.isValid) newErrors.mobile_number = phoneValidation.error;
-
     const emailValidation = validateEmail(formData.email_id);
     if (!emailValidation.isValid) newErrors.email_id = emailValidation.error;
-
     if (!formData.gender.trim()) {
       newErrors.gender = 'Please select gender';
     }
@@ -253,7 +244,6 @@ const GateCheck = ({ onVisitorCountChange, onVendorCountChange, userCompany, use
     if (formData.purpose_of_visit.trim() === '') {
       newErrors.purpose_of_visit = 'Please enter purpose of visit';
     }
-
     if (formData.visiting_date) {
       const selectedDate = new Date(formData.visiting_date);
       const today = new Date();
@@ -262,7 +252,6 @@ const GateCheck = ({ onVisitorCountChange, onVendorCountChange, userCompany, use
         newErrors.visiting_date = 'Visiting date cannot be in the past';
       }
     }
-
     if (formData.pass_type === 'RECURRING') {
       if (!formData.recurring_days.trim()) {
         newErrors.recurring_days = 'Please enter number of recurring days';
@@ -271,26 +260,21 @@ const GateCheck = ({ onVisitorCountChange, onVendorCountChange, userCompany, use
         newErrors.valid_until = 'Please select valid until date';
       }
     }
-
     if (!formData.category.trim()) {
       newErrors.category = 'Please select a category';
     }
-
     return newErrors;
   };
-
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
       [name]: value
     }));
-
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
     }
   };
-
   const resetForm = () => {
     setFormData({
       visitor_name: '',
@@ -315,7 +299,6 @@ const GateCheck = ({ onVisitorCountChange, onVendorCountChange, userCompany, use
     setErrors({});
     setSuccessMessage('');
   };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     const validationErrors = validateForm();
@@ -323,11 +306,9 @@ const GateCheck = ({ onVisitorCountChange, onVendorCountChange, userCompany, use
       setErrors(validationErrors);
       return;
     }
-
     setSubmitLoading(true);
     setErrors({});
     setSuccessMessage('');
-
     try {
       const visitorPayload = {
         visitor_name: formData.visitor_name.trim(),
@@ -349,21 +330,16 @@ const GateCheck = ({ onVisitorCountChange, onVendorCountChange, userCompany, use
         vehicle_number: formData.vehicle_number.trim() || null,
         valid_until: formData.valid_until || null
       };
-
       let response;
       if (formData.pass_type === 'RECURRING') {
         response = await api.visitors.create(visitorPayload);
       } else {
         response = await api.visitors.createRecurring(visitorPayload);
       }
-
       if (response && response.data) {
         setSuccessMessage(`Visitor ${formData.pass_type === 'RECURRING' ? 'recurring pass' : ''} added successfully!`);
-        
-        // Refresh data after adding
         fetchVisitors();
         fetchVisitorCounts();
-
         setTimeout(() => {
           setShowAddModal(false);
           resetForm();
@@ -388,7 +364,6 @@ const GateCheck = ({ onVisitorCountChange, onVendorCountChange, userCompany, use
       } else if (error.message) {
         errorMessage = error.message;
       }
-
       if (errorMessage.toLowerCase().includes('phone') || errorMessage.toLowerCase().includes('mobile')) {
         setErrors({ mobile_number: errorMessage });
       } else if (errorMessage.toLowerCase().includes('email')) {
@@ -402,54 +377,37 @@ const GateCheck = ({ onVisitorCountChange, onVendorCountChange, userCompany, use
       setSubmitLoading(false);
     }
   };
-
   const handleVisitorUpdate = async (visitorId, newStatus, actionType) => {
     try {
-      // Update visitor status via API
-      await api.visitors.updateStatus(visitorId, { 
+      await api.visitors.updateStatus(visitorId, {
         status: newStatus,
-        action_type: actionType 
+        action_type: actionType
       });
-      
-      // Refresh data after update
       fetchVisitors();
       fetchVisitorCounts();
     } catch (error) {
       setErrors({ general: 'Failed to update visitor status. Please try again.' });
     }
   };
-
-  // Filter handlers that trigger API calls
   const handleFilterStatusChange = (newStatus) => {
     setFilterStatus(newStatus);
-    // fetchVisitors will be called by useEffect
   };
-
   const handleFilterTypeChange = (newType) => {
     setFilterType(newType);
-    // fetchVisitors will be called by useEffect
   };
-
   const handleFilterCategoryChange = (newCategory) => {
     setFilterCategory(newCategory);
-    // fetchVisitors will be called by useEffect
   };
-
   const handleClearFilters = () => {
     setFilterStatus('all');
     setFilterType('all');
     setFilterCategory('all');
     setSearchTerm('');
-    // fetchVisitors will be called by useEffect
   };
-
   const handleRecurringToggle = (newShowRecurring) => {
     setShowRecurring(newShowRecurring);
-    // Clear current data and fetch new data
     setFilteredVisitors([]);
-    // fetchVisitors will be called by useEffect
   };
-
   const getStatusColor = (status) => {
     switch(status) {
       case 'APPROVED': return 'text-green-800 bg-green-100';
@@ -461,7 +419,6 @@ const GateCheck = ({ onVisitorCountChange, onVendorCountChange, userCompany, use
       default: return 'text-gray-800 bg-gray-100';
     }
   };
-
   const getStatusDot = (status) => {
     switch(status) {
       case 'APPROVED': return 'bg-green-500';
@@ -473,7 +430,6 @@ const GateCheck = ({ onVisitorCountChange, onVendorCountChange, userCompany, use
       default: return 'bg-gray-500';
     }
   };
-
   const getPassTypeLabel = (passType) => {
     switch(passType) {
       case 'ONE_TIME': return 'One Time';
@@ -482,15 +438,12 @@ const GateCheck = ({ onVisitorCountChange, onVendorCountChange, userCompany, use
       default: return passType;
     }
   };
-
   const getCategoryLabel = (categoryValue) => {
     const category = categories.find(cat => cat.value === categoryValue);
     return category ? category.name : categoryValue;
   };
-
   const exportToExcel = async () => {
     try {
-      // Request backend to generate Excel file with current filters
       const filterParams = {
         ...(searchTerm && { search: searchTerm }),
         ...(filterStatus !== 'all' && { status: filterStatus }),
@@ -498,12 +451,9 @@ const GateCheck = ({ onVisitorCountChange, onVendorCountChange, userCompany, use
         ...(filterCategory !== 'all' && { category: filterCategory }),
         export: 'excel'
       };
-
-      const response = showRecurring 
+      const response = showRecurring
         ? await api.visitors.exportRecurring(filterParams)
         : await api.visitors.export(filterParams);
-      
-      // Handle file download
       if (response && response.data) {
         const blob = new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
         const link = document.createElement('a');
@@ -520,7 +470,6 @@ const GateCheck = ({ onVisitorCountChange, onVendorCountChange, userCompany, use
     }
     setShowExcelDropdown(false);
   };
-
   const handleFileUpload = async (event) => {
     const file = event.target.files[0];
     if (file) {
@@ -539,7 +488,6 @@ const GateCheck = ({ onVisitorCountChange, onVendorCountChange, userCompany, use
       setShowExcelDropdown(false);
     }
   };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -550,7 +498,6 @@ const GateCheck = ({ onVisitorCountChange, onVendorCountChange, userCompany, use
       </div>
     );
   }
-
   return (
     <div className="min-h-screen m-0 bg-gray-50">
       {errors.general && (
@@ -595,8 +542,8 @@ const GateCheck = ({ onVisitorCountChange, onVendorCountChange, userCompany, use
         permanentCount={permanentCount}
         onClearFilters={handleClearFilters}
       />
-      <SearchBar 
-        searchTerm={searchTerm} 
+      <SearchBar
+        searchTerm={searchTerm}
         setSearchTerm={setSearchTerm}
       />
       <VisitorTable
@@ -629,5 +576,4 @@ const GateCheck = ({ onVisitorCountChange, onVendorCountChange, userCompany, use
     </div>
   );
 };
-
 export default GateCheck;

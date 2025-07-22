@@ -3,7 +3,7 @@ import {User, Users} from "lucide-react";
 
 const UserRoleStatsCards = ({ userRoles, users, roles }) => {
   return (
-    <div className="grid grid-cols-1 gap-2 mb-2 sm:grid-cols-6">
+    <div className="grid grid-cols-1 gap-2 mb-2 sm:grid-cols-5">
       <div className="flex items-center p-4 bg-white border rounded-lg shadow-sm">
         <div className="p-3 bg-purple-100 rounded-full">
           <Users className="text-purple-600" size={15} />

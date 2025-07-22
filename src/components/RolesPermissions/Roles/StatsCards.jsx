@@ -3,7 +3,7 @@ import { Users, Eye, EyeOff } from 'lucide-react';
 
 const StatsCards = ({ roles }) => {
   return (
-    <div className="grid grid-cols-1 gap-4 mb-6 md:grid-cols-6">
+    <div className="grid grid-cols-1 gap-4 mb-6 md:grid-cols-5">
       <div className="h-20 p-4 bg-white border rounded-lg shadow-sm">
         <div className="flex items-center">
           <div className="p-3 bg-purple-100 rounded-full">

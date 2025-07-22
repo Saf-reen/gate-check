@@ -2,7 +2,11 @@ import React from "react";
 import { Edit2, Trash2, Shield, Key } from "lucide-react";
 
 const RolePermissionTable = ({ rolePermissions, onEdit, onShowEditModal, onDelete }) => {
+
+  console.log('RolePermissionTable props:', { rolePermissions });
   const handleEdit = (rolePermission) => {
+    
+    
     onEdit(rolePermission);
     onShowEditModal(true);
   };
@@ -83,7 +87,9 @@ const RolePermissionTable = ({ rolePermissions, onEdit, onShowEditModal, onDelet
                       <Edit2 size={16} />
                     </button>
                     <button
-                      onClick={() => onDelete(rolePermission.id)}
+                      onClick={() => onDelete(rolePermission.
+role_permission_id
+)}
                       className="p-1 text-gray-400 transition-colors hover:text-red-600"
                       title="Delete role permission assignment"
                     >

@@ -72,16 +72,6 @@ const Header = ({
               <Users className="w-6 h-6 m-2 text-purple-800" />
               {showRecurring ? 'Recurring Visitors' : 'Regular Visitors'}
             </h1>
-            <button
-              onClick={() => setShowRecurring(!showRecurring)}
-              className={`p-2 text-sm rounded-lg transition-colors ${
-                showRecurring
-                  ? 'text-purple-800 bg-white hover:bg-purple-100 border border-purple-800'
-                  : 'text-purple-800 bg-white hover:bg-purple-100 border border-purple-800'
-              }`}
-            >
-              {showRecurring ? 'Show Regular Visitors' : 'Show Recurring Visitors'}
-            </button>
           </div>
           <div className="flex items-center space-x-3">
             <button
@@ -124,9 +114,9 @@ const Header = ({
                           className="w-full p-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                         >
                           <option value="all">All Status</option>
-                          <option value="approved">Approved</option>
-                          <option value="pending">Pending</option>
-                          <option value="rejected">Rejected</option>
+                          <option value="APPROVED">Approved</option>
+                          <option value="PENDING">Pending</option>
+                          <option value="REJECTED">Rejected</option>
                         </select>
                       </div>
                     )}
@@ -138,9 +128,9 @@ const Header = ({
                         className="w-full p-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                       >
                         <option value="all">All Types</option>
-                        <option value="one-time">One-time</option>
-                        <option value="recurring">Recurring</option>
-                        <option value="permanent">Permanent</option>
+                        <option value="ONE_TIME">One-time</option>
+                        <option value="RECURRING">Recurring</option>
+                        <option value="PERMANENT">Permanent</option>
                       </select>
                     </div>
                     <div className="mb-3">
@@ -152,7 +142,7 @@ const Header = ({
                       >
                         <option value="all">All Categories</option>
                         {categories.map((category) => (
-                          <option key={category.id || category.name || category} value={category.name || category}>
+                          <option key={category.id || category.value || category.name} value={category.value || category.name || category}>
                             {category.name || category}
                           </option>
                         ))}

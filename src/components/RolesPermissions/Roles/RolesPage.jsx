@@ -20,10 +20,11 @@ const RolesPage = () => {
     name: "",
     is_active: true
   });
+
   
-  // Get fresh token each time to avoid stale token issues
   const getConfig = () => {
-    const token = localStorage.getItem('authtoken');
+    const token = localStorage.getItem('authToken');
+ 
     return {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -76,7 +77,6 @@ const RolesPage = () => {
     }
     try {
       setSubmitting(true);
-      // Make sure to pass the config with fresh token
       const response = await api.roles.update(selectedRole.role_id, selectedRole, getConfig());
       setRoles(roles.map(role =>
         role.role_id === selectedRole.role_id ? response.data : role
@@ -96,9 +96,13 @@ const RolesPage = () => {
     if (!window.confirm("Are you sure you want to delete this role?")) {
       return;
     }
+        const token = localStorage.getItem('authToken');
     try {
-      // Make sure to pass the config with fresh token
-      await api.roles.delete(roleId, getConfig());
+      await api.roles.delete(roleId, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
       setRoles(roles.filter(role => role.role_id !== roleId));
       setError(null);
     } catch (err) {
@@ -112,7 +116,6 @@ const RolesPage = () => {
     if (!role) return;
     try {
       const updatedRole = { ...role, is_active: !role.is_active };
-      // Make sure to pass the config with fresh token
       const response = await api.roles.update(roleId, updatedRole, getConfig());
       setRoles(roles.map(r =>
         r.role_id === roleId ? response.data : r
@@ -144,10 +147,10 @@ const RolesPage = () => {
   }
 
   return (
-    <div className="min-h-screen pl-4 bg-gray-50">
+    <div className="min-h-screen p-4 bg-gray-50">
       <div className="mx-auto max-w-7xl">
         <div className="mb-2">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
             <div>
               <h1 className="flex items-center gap-2 text-3xl font-bold text-gray-900">
                 <Users className="text-purple-600" size={32} />
@@ -157,35 +160,32 @@ const RolesPage = () => {
             </div>
             <button
               onClick={() => setShowAddModal(true)}
-              className="flex items-center gap-2 p-2 text-purple-800 transition-colors bg-transparent border border-purple-800 rounded-lg hover:bg-purple-100"
+              className="flex items-center gap-2 px-4 py-2 text-purple-800 transition-colors bg-white border border-purple-800 rounded-lg hover:bg-purple-100"
             >
               <Plus size={20} />
               Add Role
             </button>
           </div>
         </div>
-
         <AlertMessage message={error} type="error" />
-
         <StatsCards roles={roles} />
-
         <div className="p-2 mb-6 bg-white border rounded-lg shadow-sm">
           <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
-            <div className="flex items-center gap-4">
-              <div className="relative">
+            <div className="flex flex-col w-full gap-4 md:flex-row">
+              <div className="relative w-full">
                 <Search className="absolute text-gray-400 transform -translate-y-1/2 left-3 top-1/2" size={15} />
                 <input
                   type="text"
                   placeholder="Search roles..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="p-2 pl-8 text-sm border border-gray-300 outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full p-2 pl-8 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 />
               </div>
               <select
                 value={filterActive}
                 onChange={(e) => setFilterActive(e.target.value)}
-                className="p-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full p-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent md:w-auto"
               >
                 <option value="all">All Roles</option>
                 <option value="active">Active Only</option>
@@ -201,15 +201,15 @@ const RolesPage = () => {
             </button>
           </div>
         </div>
-
-        <RoleTable
-          roles={filteredRoles}
-          onEdit={setSelectedRole}
-          onShowEditModal={setShowEditModal}
-          onToggleStatus={toggleRoleStatus}
-          onDelete={handleDeleteRole}
-        />
-
+        <div className="overflow-x-auto">
+          <RoleTable
+            roles={filteredRoles}
+            onEdit={setSelectedRole}
+            onShowEditModal={setShowEditModal}
+            onToggleStatus={toggleRoleStatus}
+            onDelete={handleDeleteRole}
+          />
+        </div>
         <RoleModal
           isOpen={showAddModal}
           onClose={() => setShowAddModal(false)}
@@ -219,7 +219,6 @@ const RolesPage = () => {
           onSubmit={handleAddRole}
           submitting={submitting}
         />
-
         <RoleModal
           isOpen={showEditModal}
           onClose={() => setShowEditModal(false)}

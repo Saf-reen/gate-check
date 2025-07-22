@@ -23,26 +23,26 @@ const setupAxiosInterceptors = (authService) => {
       const originalRequest = error.config;
       if (error.response?.status === 401 && !originalRequest._retry) {
         originalRequest._retry = true;
-        try {
-          const refreshToken = localStorage.getItem('refreshToken');
-          if (refreshToken) {
-            const refreshResponse = await axiosInstance.post('/auth/refresh', {
-              refreshToken: refreshToken
-            });
-            const { token, refreshToken: newRefreshToken } = refreshResponse.data;
-            localStorage.setItem('authToken', token);
-            if (newRefreshToken) {
-              localStorage.setItem('refreshToken', newRefreshToken);
-            }
-            // Update the original request with new token
-            originalRequest.headers.Authorization = `Bearer ${token}`;
-            return axiosInstance(originalRequest);
-          }
-        } catch (refreshError) {
-          // Refresh failed, logout user
-          authService?.logout('TOKEN_REFRESH_FAILED');
-          return Promise.reject(refreshError);
-        }
+        // try {
+        //   const refreshToken = localStorage.getItem('refreshToken');
+        //   if (refreshToken) {
+        //     // const refreshResponse = await axiosInstance.post('/auth/refresh', {
+        //     //   refreshToken: refreshToken
+        //     // });
+        //     const { token, refreshToken: newRefreshToken } = refreshResponse.data;
+        //     localStorage.setItem('authToken', token);
+        //     if (newRefreshToken) {
+        //       localStorage.setItem('refreshToken', newRefreshToken);
+        //     }
+        //     // Update the original request with new token
+        //     originalRequest.headers.Authorization = `Bearer ${token}`;
+        //     return axiosInstance(originalRequest);
+        //   }
+        // } catch (refreshError) {
+        //   // Refresh failed, logout user
+        //   authService?.logout('TOKEN_REFRESH_FAILED');
+        //   return Promise.reject(refreshError);
+        // }
       }
       return Promise.reject(error);
     }
@@ -57,7 +57,7 @@ export const api = {
     register: (userData) => axiosInstance.post('/user/create-user', userData),
     validateUser: (identifier) => axiosInstance.post('/login/validate/', identifier),
     logout: () => axiosInstance.post('/login/logout/'),
-    refreshToken: (refreshToken) => axiosInstance.post('/auth/refresh', { refreshToken }),
+    // refreshToken: (refreshToken) => axiosInstance.post('/auth/refresh', { refreshToken }),
     refreshView: () => axiosInstance.get('/api/auth/refresh/'),
     forgotPassword: (identifier) => axiosInstance.post('/login/otp-request/', identifier),
     verifyOtp: (otpData) => axiosInstance.post('/login/verify-otp/', otpData),
@@ -78,15 +78,19 @@ export const api = {
   visitors: {
     create: (visitorData) => axiosInstance.post('/visitors/visitors/', visitorData),
     getAll: (params) => axiosInstance.get('/visitors/visitors/', { params }),
-    getRecurring: (params) => axiosInstance.get('/visitors/visitors/', { params }),
+    getRecurring: (params) => axiosInstance.get('/visitors/filter/?pass_type=recurring   ', { params }),
     update: (visitorId, visitorData) => axiosInstance.put(`/visitors/${visitorId}/`, visitorData),
     delete: (visitorId) => axiosInstance.delete(`/visitors/${visitorId}/`),
-    
     getById: (visitorId) => axiosInstance.get(`/visitors/${visitorId}/`),
     category: () => axiosInstance.get('/visitors/categories/'),
     approve: (visitorId) => axiosInstance.post(`/visitors/visitors/${visitorId}/approval/`, { action: 'approve' }),
-    reject: (visitorId) => axiosInstance.post(`/visitors/${visitorId}/reject/`, { action: 'reject' }),
+    reject: (visitorId) => axiosInstance.post(`/visitors/visitors/${visitorId}/reject/`, { action: 'reject' }),
     createRecurring: (visitorData) => axiosInstance.post('/visitors/visitors/', visitorData),
+    filterStatus: (params) => axiosInstance.get('/visitors/filter/', { params }),
+    filterPassType: (params) => axiosInstance.get(`/visitors/filter/?pass_type=${params.pass_type}`, { params }),
+    checkin: (visitorId) => axiosInstance.post(`/visitors/visitors/${visitorId}/entry-exit/`, { action: 'entry' }),
+    checkout: (visitorId) => axiosInstance.post(`/visitors/visitors/${visitorId}/entry-exit/`, { action: 'exit' }),
+    getQR: () => axiosInstance.get(`/visitors/visitors/`),
   },
   // Organization endpoints
   organization: {
@@ -110,7 +114,7 @@ export const api = {
     getAll: () => axiosInstance.get('/roles/create/'),
     create: (roleData) => axiosInstance.post('/roles/create/', roleData),
     update: (roleId, roleData) => axiosInstance.put(`/roles/role/${roleId}/`, roleData),
-    delete: (roleId) => axiosInstance.delete(`/roles/role/${roleId}/`),
+    delete: (roleId) => axiosInstance.delete(`/roles/role/${roleId}/`, ),
     getById: (roleId) => axiosInstance.get(`/roles/role/${roleId}/`),
   },
   permissions:{

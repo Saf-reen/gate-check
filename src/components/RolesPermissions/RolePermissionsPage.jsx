@@ -55,7 +55,7 @@ const RolePermissionsPage = () => {
       setError(null);
       const response = await api.rolePermissions.getAll();
       setRolePermissions(response.data);
-      console.log(response);
+      console.log(response,"response is ");
     } catch (err) {
       console.error('Error fetching role permissions:', err);
       setError('Failed to load role permissions. Please try again.');
