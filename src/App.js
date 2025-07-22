@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { api, setupAxiosInterceptors } from './components/Auth/api';
 import Sidebar from './components/Common/Sidebar';
 import Dashboard from './components/Dashboard/Dashboard';
 import GateCheck from './components/GateCheck/GateCheck';
@@ -20,7 +21,6 @@ import Permissions from './components/RolesPermissions/Permissions/PermissionsPa
 import RolePermissionsPage from './components/RolesPermissions/RolePermissionsPage';
 import UserRole from './components/Users/Roles/UserRole';
 import CategoryPage from './components/GateCheck/Categories/CategoryPage';
-
 
 // Configuration for demo/production mode
 const DEMO_MODE = true; // Set to false to enable full authentication
@@ -85,7 +85,6 @@ function App() {
       if (!captchaValue || captchaValue.trim() === '') {
         throw new Error('Please complete the captcha verification');
       }
-
       setIsAuthenticated(true);
       setUserProfile(userData);
       console.log('Demo login successful for:', userData.email);
@@ -105,24 +104,46 @@ function App() {
       setUserProfile(null);
       setVisitors([]);
       setShowAddUserModal(false);
-
       console.log('Logout successful');
     } catch (error) {
       console.error('Logout error:', error);
     }
   };
 
+  const fetchVisitors = async () => {
+    try {
+      setLoading(true);
+      const response = await api.visitors.getAll();
+      setVisitors(response.data);
+    } catch (error) {
+      console.error('Failed to fetch visitors:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchVendors = async () => {
+    try {
+      setLoading(true);
+      const response = await api.visitors.getAll({ type: 'vendor' }); // Assuming you have a way to filter vendors
+      setVendors(response.data);
+    } catch (error) {
+      console.error('Failed to fetch vendors:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
+    setupAxiosInterceptors();
     const checkAuthStatus = () => {
       try {
         const token = localStorage.getItem('demoAuthToken');
         const savedUser = localStorage.getItem('userProfile');
         const tokenExpiry = localStorage.getItem('tokenExpiry');
-
         if (token && savedUser && tokenExpiry) {
           const now = new Date().getTime();
           const expiryTime = parseInt(tokenExpiry);
-
           if (now < expiryTime) {
             const userData = JSON.parse(savedUser);
             setIsAuthenticated(true);
@@ -139,6 +160,8 @@ function App() {
       }
     };
     checkAuthStatus();
+    fetchVisitors();
+    fetchVendors();
   }, []);
 
   if (loading) {
@@ -208,7 +231,7 @@ function App() {
                         <Route path="/userroles" element={<UserRole userProfile={userProfile} />} />
                         <Route path="/manual-pass" element={<ManualPass />} />
                         <Route path="/qr-pass" element={<QRCode />} />
-                        <Route path="/category" element={<CategoryPage />}/>
+                        <Route path="/category" element={<CategoryPage />} />
                         <Route path="/Dashboard" element={<Navigate to="/dashboard" replace />} />
                         <Route path="/GateCheck" element={<Navigate to="/gatecheck" replace />} />
                         <Route path="/Reports" element={<Navigate to="/reports" replace />} />

@@ -35,7 +35,6 @@ const VisitorTable = ({
 
   const handleStatusUpdate = async (visitorId, newStatus, actionType) => {
     setLoadingActions(prev => ({ ...prev, [`${visitorId}-${actionType}`]: true }));
-
     try {
       let response;
       switch (actionType) {
@@ -47,20 +46,41 @@ const VisitorTable = ({
           break;
         case 'checkin':
           response = await api.visitors.checkin(visitorId);
+          console.log('Checkin response:', response);
           break;
         case 'checkout':
           response = await api.visitors.checkout(visitorId);
+          console.log('Checkout response:', response);
           break;
         default:
           throw new Error(`Unknown action type: ${actionType}`);
       }
 
-      if (response && response.data) {
+      // Check if response is successful (status 200-299)
+      if (response && (response.status === 200)) {
+        let actualStatus = newStatus;
+
+        // For checkin action, if successful, set status to CHECKED_IN
+        if (actionType === 'checkin') {
+          actualStatus = 'CHECKED_IN';
+          console.log(`Setting visitor ${visitorId} status to CHECKED_IN`);
+        }
+        
+        // For checkout action, if successful, set status to CHECKED_OUT
+        if (actionType === 'checkout') {
+          actualStatus = 'CHECKED_OUT';
+          console.log(`Setting visitor ${visitorId} status to CHECKED_OUT`);
+        }
+
+        console.log('Calling onVisitorUpdate with:', { visitorId, actualStatus, actionType });
+        
         if (onVisitorUpdate) {
-          onVisitorUpdate(visitorId, newStatus, actionType);
+          onVisitorUpdate(visitorId, actualStatus, actionType);
+        } else {
+          console.warn('onVisitorUpdate callback is not provided!');
         }
       } else {
-        throw new Error('No response data received');
+        throw new Error('API request failed');
       }
     } catch (error) {
       console.error(`Failed to ${actionType} visitor:`, error);
@@ -69,7 +89,6 @@ const VisitorTable = ({
       setLoadingActions(prev => ({ ...prev, [`${visitorId}-${actionType}`]: false }));
     }
   };
-
 
   const handlePassGeneration = async (visitorId, passType) => {
     setLoadingActions(prev => ({ ...prev, [`${visitorId}-${passType}`]: true }));
@@ -91,6 +110,8 @@ const VisitorTable = ({
 
   const getActionButtons = (visitor) => {
     const buttons = [];
+    
+    // PENDING status: Show Approve and Reject buttons
     if (visitor.status === 'PENDING') {
       buttons.push(
         <button
@@ -121,22 +142,45 @@ const VisitorTable = ({
         </button>
       );
     }
+    
+    // APPROVED status: Show Check In button if not inside, Check Out button if inside
     if (visitor.status === 'APPROVED') {
-      buttons.push(
-        <button
-          key="checkin"
-          onClick={() => handleStatusUpdate(visitor.id, 'CHECKED_IN', 'checkin')}
-          disabled={loadingActions[`${visitor.id}-checkin`]}
-          className="px-2 py-1 text-xs text-blue-600 border border-blue-600 rounded hover:text-blue-900 hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {loadingActions[`${visitor.id}-checkin`] ? (
-            <Loader2 className="w-3 h-3 animate-spin" />
-          ) : (
-            'Check In'
-          )}
-        </button>
-      );
+      if (visitor.is_inside) {
+        // If approved and inside, show Check Out button
+        buttons.push(
+          <button
+            key="checkout"
+            onClick={() => handleStatusUpdate(visitor.id, 'CHECKED_OUT', 'checkout')}
+            disabled={loadingActions[`${visitor.id}-checkout`]}
+            className="px-2 py-1 text-xs text-gray-600 border border-gray-600 rounded hover:text-gray-900 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loadingActions[`${visitor.id}-checkout`] ? (
+              <Loader2 className="w-3 h-3 animate-spin" />
+            ) : (
+              'Check Out'
+            )}
+          </button>
+        );
+      } else {
+        // If approved but not inside, show Check In button
+        buttons.push(
+          <button
+            key="checkin"
+            onClick={() => handleStatusUpdate(visitor.id, 'CHECKED_IN', 'checkin')}
+            disabled={loadingActions[`${visitor.id}-checkin`]}
+            className="px-2 py-1 text-xs text-blue-600 border border-blue-600 rounded hover:text-blue-900 hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loadingActions[`${visitor.id}-checkin`] ? (
+              <Loader2 className="w-3 h-3 animate-spin" />
+            ) : (
+              'Check In'
+            )}
+          </button>
+        );
+      }
     }
+    
+    // CHECKED_IN status: Show Check Out button
     if (visitor.status === 'CHECKED_IN') {
       buttons.push(
         <button
@@ -153,6 +197,10 @@ const VisitorTable = ({
         </button>
       );
     }
+    
+    // REJECTED status: No buttons (stays rejected)
+    // CHECKED_OUT status: No buttons (visitor has left)
+    
     return buttons;
   };
 

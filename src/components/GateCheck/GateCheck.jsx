@@ -154,6 +154,7 @@ const GateCheck = ({ onVisitorCountChange, userCompany, user }) => {
       } else {
         const visitorsResponse = await api.visitors.getAll(filterParams);
         console.log('Visitors Response:', visitorsResponse);
+        console.log('inside',visitorsResponse.data.is_inside);
         if (visitorsResponse && visitorsResponse.data) {
           const visitorsData = visitorsResponse.data.visitors || visitorsResponse.data;
           if (Array.isArray(visitorsData)) {

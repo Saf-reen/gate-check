@@ -90,7 +90,7 @@ export const api = {
     filterPassType: (params) => axiosInstance.get(`/visitors/filter/?pass_type=${params.pass_type}`, { params }),
     checkin: (visitorId) => axiosInstance.post(`/visitors/visitors/${visitorId}/entry-exit/`, { action: 'entry' }),
     checkout: (visitorId) => axiosInstance.post(`/visitors/visitors/${visitorId}/entry-exit/`, { action: 'exit' }),
-    getQR: () => axiosInstance.get(`/visitors/visitors/`),
+    getQR: (visitorId) => axiosInstance.get(`/visitors/visitors/${visitorId}/`),
   },
   // Organization endpoints
   organization: {
