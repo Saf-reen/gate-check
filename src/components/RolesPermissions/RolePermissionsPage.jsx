@@ -159,15 +159,39 @@ const RolePermissionsPage = () => {
 
 
   const filteredRolePermissions = rolePermissions.filter(rp => {
-    const matchesSearch = rp.role.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         rp.permission.some(perm => perm.toLowerCase().includes(searchTerm.toLowerCase()));
-    const matchesFilter = filterRole === "all" || rp.role === filterRole;
+    // Log the current role permission object to inspect its structure
+    console.log('Role Permission Object:', rp);
+
+    // Safely access properties with proper null/undefined checks
+    const permissionId = rp.permission_id ? String(rp.permission_id) : '';
+    const createdBy = rp.created_by ? String(rp.created_by).toLowerCase() : '';
+    
+    // Also check other potential searchable fields
+    const roleName = rp.role ? String(rp.role).toLowerCase() : '';
+    const permissionName = rp.permission_name ? String(rp.permission_name).toLowerCase() : '';
+
+    const searchTermLower = searchTerm.toLowerCase();
+
+    // Check if any searchable field includes the search term
+    const matchesSearch = !searchTerm || // If no search term, show all
+                        permissionId.includes(searchTermLower) ||
+                        createdBy.includes(searchTermLower) ||
+                        roleName.includes(searchTermLower) ||
+                        permissionName.includes(searchTermLower);
+
+    // Filter by role if a specific role is selected
+    const matchesFilter = filterRole === "all" || 
+                        (rp.role && String(rp.role) === filterRole);
+
     return matchesSearch && matchesFilter;
   });
 
   // Get unique roles for filter dropdown
-  const uniqueRoles = [...new Set(rolePermissions.map(rp => rp.role))];
-
+  // Update this line to match your actual data structure
+  const uniqueRoles = [...new Set(rolePermissions
+  .map(rp => rp.role)
+  .filter(role => role !== null && role !== undefined))];
+  
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen p-6 bg-gray-50">

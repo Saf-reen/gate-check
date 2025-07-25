@@ -55,8 +55,9 @@ function App() {
   const [showAddUserModal, setShowAddUserModal] = useState(false);
   const [companyId, setCompanyId] = useState(null);
 
-  const totalVisitors = visitors.length;
-  const totalVendors = vendors.length;
+  // Separate state for counts to ensure they're always up to date
+  const [visitorCount, setVisitorCount] = useState(0);
+  const [vendorCount, setVendorCount] = useState(0);
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
@@ -80,14 +81,35 @@ function App() {
     console.log('New user added:', newUser);
   };
 
+  // Callback functions to update counts from GateCheck
+  const handleVisitorCountChange = (count) => {
+    setVisitorCount(count);
+  };
+
+  const handleVendorCountChange = (count) => {
+    setVendorCount(count);
+  };
+
   const handleLogin = async (userData, token, captchaValue) => {
     try {
       if (!captchaValue || captchaValue.trim() === '') {
         throw new Error('Please complete the captcha verification');
       }
+      
+      // Store auth data consistently
+      const expiryTime = new Date().getTime() + (24 * 60 * 60 * 1000); // 24 hours from now
+      
+      localStorage.setItem('demoAuthToken', token || 'demo-token');
+      localStorage.setItem('authToken', token || 'demo-token');
+      localStorage.setItem('userProfile', JSON.stringify(userData));
+      localStorage.setItem('tokenExpiry', expiryTime.toString());
+      
       setIsAuthenticated(true);
       setUserProfile(userData);
-      console.log('Demo login successful for:', userData.email);
+      
+      console.log('Login successful for:', userData.email);
+      console.log('Token expiry set to:', new Date(expiryTime));
+      
     } catch (error) {
       console.error('Login error:', error);
       throw error;
@@ -96,15 +118,29 @@ function App() {
 
   const handleLogout = () => {
     try {
-      localStorage.removeItem('demoAuthToken');
-      localStorage.removeItem('userProfile');
-      localStorage.removeItem('tokenExpiry');
-      localStorage.removeItem('authToken');
+      // Clear all possible auth-related items
+      const authKeys = [
+        'demoAuthToken',
+        'authToken', 
+        'userProfile',
+        'tokenExpiry',
+        'refreshToken',
+        'sessionData'
+      ];
+      
+      authKeys.forEach(key => {
+        localStorage.removeItem(key);
+      });
+      
       setIsAuthenticated(false);
       setUserProfile(null);
       setVisitors([]);
+      setVendors([]);
+      setVisitorCount(0);
+      setVendorCount(0);
       setShowAddUserModal(false);
-      console.log('Logout successful');
+      
+      console.log('Logout successful - all auth data cleared');
     } catch (error) {
       console.error('Logout error:', error);
     }
@@ -115,8 +151,10 @@ function App() {
       setLoading(true);
       const response = await api.visitors.getAll();
       setVisitors(response.data);
+      setVisitorCount(response.data?.length || 0);
     } catch (error) {
       console.error('Failed to fetch visitors:', error);
+      setVisitorCount(0);
     } finally {
       setLoading(false);
     }
@@ -127,8 +165,10 @@ function App() {
       setLoading(true);
       const response = await api.visitors.getAll({ type: 'vendor' }); // Assuming you have a way to filter vendors
       setVendors(response.data);
+      setVendorCount(response.data?.length || 0);
     } catch (error) {
       console.error('Failed to fetch vendors:', error);
+      setVendorCount(0);
     } finally {
       setLoading(false);
     }
@@ -136,33 +176,70 @@ function App() {
 
   useEffect(() => {
     setupAxiosInterceptors();
+    
     const checkAuthStatus = () => {
       try {
-        const token = localStorage.getItem('demoAuthToken');
+        // Check for both demo and regular auth tokens
+        const demoToken = localStorage.getItem('demoAuthToken');
+        const authToken = localStorage.getItem('authToken');
         const savedUser = localStorage.getItem('userProfile');
         const tokenExpiry = localStorage.getItem('tokenExpiry');
-        if (token && savedUser && tokenExpiry) {
+        
+        console.log('Checking auth status:', { 
+          hasDemoToken: !!demoToken, 
+          hasAuthToken: !!authToken, 
+          hasSavedUser: !!savedUser, 
+          hasTokenExpiry: !!tokenExpiry 
+        });
+        
+        // Check if we have any valid token and user data
+        if ((demoToken || authToken) && savedUser) {
+          // If no expiry is set, assume it's valid (for demo mode)
+          if (!tokenExpiry) {
+            console.log('No expiry set, assuming valid session');
+            const userData = JSON.parse(savedUser);
+            setIsAuthenticated(true);
+            setUserProfile(userData);
+            console.log('Restored session for:', userData.email);
+            return;
+          }
+          
+          // Check expiry if it exists
           const now = new Date().getTime();
           const expiryTime = parseInt(tokenExpiry);
+          
           if (now < expiryTime) {
             const userData = JSON.parse(savedUser);
             setIsAuthenticated(true);
             setUserProfile(userData);
-            console.log('Restored demo session for:', userData.email);
+            console.log('Restored valid session for:', userData.email);
           } else {
-            console.log('Demo session expired, clearing auth data');
+            console.log('Session expired, clearing auth data');
             handleLogout();
           }
+        } else {
+          console.log('No valid session found');
+          // Don't call handleLogout here as it might clear valid data
+          setIsAuthenticated(false);
+          setUserProfile(null);
         }
       } catch (error) {
         console.error('Error checking auth status:', error);
-        handleLogout();
+        // Only logout on critical errors, not parsing errors
+        console.log('Auth check failed, but not clearing session');
+        setIsAuthenticated(false);
+        setUserProfile(null);
       }
     };
+    
     checkAuthStatus();
-    fetchVisitors();
-    fetchVendors();
-  }, []);
+    
+    // Only fetch data if authenticated
+    if (isAuthenticated) {
+      fetchVisitors();
+      fetchVendors();
+    }
+  }, [isAuthenticated]);
 
   if (loading) {
     return <LoadingSpinner />;
@@ -217,10 +294,46 @@ function App() {
                     <div className="p-6">
                       <Routes>
                         <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                        <Route path="/dashboard" element={<Dashboard visitors={visitors} totalVisitors={totalVisitors} user={userProfile} onLogout={handleLogout} />} />
-                        <Route path="/gatecheck" element={<GateCheck visitors={visitors} setVisitors={setVisitors} totalVisitors={totalVisitors} vendors={vendors} setVendors={setVendors} totalVendors={totalVendors} userProfile={userProfile} user={userProfile} />} />
-                        <Route path="/visitors" element={<VisitorsPage totalVisitors={totalVisitors} visitors={visitors} />} />
-                        <Route path="/vendors" element={<VendorsPage totalVendors={totalVendors} vendors={vendors} />} />
+                        <Route 
+                          path="/dashboard" 
+                          element={
+                            <Dashboard 
+                              user={userProfile} 
+                              onLogout={handleLogout} 
+                              totalVisitors={visitorCount}
+                              totalVendors={vendorCount}
+                            />
+                          } 
+                        />
+                        <Route 
+                          path="/gatecheck" 
+                          element={
+                            <GateCheck 
+                              onVisitorCountChange={handleVisitorCountChange}
+                              onVendorsCountChange={handleVendorCountChange}
+                              userCompany={userProfile?.company}
+                              user={userProfile}
+                            />
+                          } 
+                        />
+                        <Route 
+                          path="/visitors" 
+                          element={
+                            <VisitorsPage 
+                              totalVisitors={visitorCount} 
+                              visitors={visitors} 
+                            />
+                          } 
+                        />
+                        <Route 
+                          path="/vendors" 
+                          element={
+                            <VendorsPage 
+                              totalVendors={vendorCount} 
+                              vendors={vendors} 
+                            />
+                          } 
+                        />
                         <Route path="/reports" element={<Reports userProfile={userProfile} />} />
                         <Route path="/profile" element={<ProfilePage userProfile={userProfile} onLogout={handleLogout} />} />
                         <Route path="/organization" element={<Organization userProfile={userProfile} user={userProfile} onLogout={handleLogout} onOpenAddUserModal={handleOpenAddUserModal} />} />

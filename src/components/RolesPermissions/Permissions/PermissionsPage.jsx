@@ -59,7 +59,7 @@ const PermissionsPage = () => {
                          (filterActive === "inactive" && !permission.is_active);
     return matchesSearch && matchesFilter;
   });
-
+  console.log(filteredPermissions);
   const handleAddPermission = async () => {
     if (!newPermission.name.trim()) {
       alert('Please enter a permission name');
@@ -88,6 +88,7 @@ const PermissionsPage = () => {
     try {
       setSubmitting(true);
       const response = await api.permissions.update(selectedPermission.permission_id, selectedPermission);
+      console.log(response.data);
       setPermissions(permissions.map(permission =>
         permission.permission_id === selectedPermission.permission_id ? response.data : permission
       ));

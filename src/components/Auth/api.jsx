@@ -173,13 +173,33 @@ export const api = {
         },
       });
     },
-    generateCustomPdf: (reportData) => axiosInstance.post('/reports/custom/pdf', reportData, {
-      responseType: 'blob',
-      headers: {
-        'Accept': 'application/pdf'
-      }
-    }),
-    previewReport: (reportData) => axiosInstance.post('/reports/preview', reportData),
+    generateCustomPdf: (reportData) => {
+      const queryString = new URLSearchParams({
+        from_date: reportData.fromDate,
+        to_date: reportData.toDate,
+      }).toString();
+
+      return axiosInstance.get(`/reports/export-pdf/?${queryString}`, {
+        responseType: 'blob',
+        headers: {
+          Accept: '*/*',
+        },
+      });
+    },
+    previewReport: (reportData) => {
+      const queryString = new URLSearchParams({
+        from_date: reportData.fromDate,
+        to_date: reportData.toDate,
+      }).toString();
+
+      return axiosInstance.get(`/reports/export-pdf/?${queryString}&preview=true`, {
+        responseType: 'blob',
+        headers: {
+          Accept: '*/*',
+        },
+      });
+    },
+    // previewReport: (reportData) => axiosInstance.post('/reports/preview', reportData),
     generateReport: (reportData) => axiosInstance.post('/reports/generate', reportData, {
       responseType: reportData.format === 'PDF' ? 'blob' : 'json'
     }),
