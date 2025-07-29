@@ -24,6 +24,10 @@ const ReportPage = () => {
     type: ''
   });
 
+  // New state for year-month selection
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [monthlyReports, setMonthlyReports] = useState({});
+
   const getYearOptions = () => {
     const currentYear = new Date().getFullYear();
     return [currentYear, currentYear - 1, currentYear - 2];
@@ -32,6 +36,34 @@ const ReportPage = () => {
   const getCurrentTime = () => {
     const now = new Date();
     return now.toTimeString().slice(0, 5);
+  };
+
+  const getMonthName = (monthNumber) => {
+    const months = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    return months[monthNumber - 1];
+  };
+
+  const getMonthsForYear = () => {
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getMonth() + 1;
+    
+    const months = [];
+    for (let i = 1; i <= 12; i++) {
+      // Only show months up to current month if it's the current year
+      if (selectedYear === currentYear && i > currentMonth) {
+        break;
+      }
+      months.push({
+        number: i,
+        name: getMonthName(i),
+        fullName: `${getMonthName(i)} ${selectedYear}`
+      });
+    }
+    return months;
   };
 
   useEffect(() => {
@@ -50,15 +82,12 @@ const ReportPage = () => {
       newErrors.year = 'Please select a year';
     }
 
-    // if (!monthlyData.type) {
-    //   newErrors.type = 'Please select a report type';
-    // }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const validateCustomData = () => {
+    
     const newErrors = {};
 
     if (!customData.fromDate) {
@@ -68,10 +97,6 @@ const ReportPage = () => {
     if (!customData.toDate) {
       newErrors.toDate = 'Please select to date';
     }
-
-    // if (!customData.type) {
-    //   newErrors.customType = 'Please select a report type';
-    // }
 
     if (customData.fromDate && customData.toDate) {
       const fromDateTime = new Date(`${customData.fromDate}T${customData.fromTime || '00:00'}`);
@@ -96,6 +121,114 @@ const ReportPage = () => {
     return Object.keys(newErrors).length === 0;
   };
 
+  // New function to handle month-specific actions
+  // Updated handleMonthAction function to handle preview the same way as handlePreview
+  const handleMonthAction = async (year, month, action, format = null) => {
+    const actionKey = `${year}-${month}-${action}-${format || ''}`;
+    setDownloadLoading(actionKey);
+    setErrors({});
+
+    try {
+      let response;
+      const params = { 'year': year, 'month': month };
+      console.log(params);
+
+      if (action === 'preview') {
+        response = await api.reports.previewMonthlyReport({year, month});
+        
+        // Handle preview response the same way as handlePreview function
+        if (response && response.data) {
+          if (response.data.previewUrl) {
+            window.open(response.data.previewUrl, '_blank');
+          } else if (response.data instanceof Blob) {
+            const url = window.URL.createObjectURL(response.data);
+            window.open(url, '_blank');
+            window.URL.revokeObjectURL(url);
+          } else if (response.data.previewData) {
+            setPreviewData(response.data.previewData);
+            setShowPreview(true);
+          } else if (Array.isArray(response.data)) {
+            setPreviewData(response.data);
+            setShowPreview(true);
+          } else {
+            console.log('Preview data:', response.data);
+            setPreviewData(response.data);
+            setShowPreview(true);
+          }
+        }
+      } else if (action === 'download') {
+          if (format === 'xls') {
+            response = await api.reports.generateMonthlyExcel(
+              { year, month, responseType: 'blob' }
+            );
+            console.log(response.data);
+          } else if (format === 'pdf') {
+            response = await api.reports.generateMonthlyPdf(
+              { year, month, responseType: 'blob' }
+            );
+          }
+
+        // --- Error blob handling here ---
+        if (response && response.data instanceof Blob) {
+          if (response.data.type === 'application/json') {
+            const text = await response.data.text();
+            console.error('Error response:', text);
+            let errorJson;
+            try {
+              errorJson = JSON.parse(text);
+            } catch {
+              errorJson = { error: text };
+            }
+            setErrors({
+              general: errorJson.error || errorJson.message || 'Failed to download monthly report.',
+            });
+            setDownloadLoading('');
+            return; // Stop here, don't try to download!
+          }
+
+          // Valid file, download as before:
+          const url = window.URL.createObjectURL(response.data);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `Monthly_Report_${year}_${month.toString().padStart(2, '0')}.${format}`;
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          window.URL.revokeObjectURL(url);
+
+          alert(`${format.toUpperCase()} Monthly Report for ${getMonthName(month)} ${year} generated successfully!`);
+        }
+      }
+    } catch (error) {
+      console.error(`Monthly ${action} error:`, error);
+
+      let errorMessage = `Failed to ${action} monthly report. Please try again.`;
+
+      // Handle error blob in catch (if thrown here)
+      if (error.response?.data instanceof Blob && error.response.data.type === 'application/json') {
+        const text = await error.response.data.text();
+        try {
+          const errorJson = JSON.parse(text);
+          errorMessage = errorJson.error || errorJson.message || errorMessage;
+        } catch {
+          errorMessage = text;
+        }
+      }
+      else if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      setErrors({ general: errorMessage });
+    } finally {
+      setDownloadLoading('');
+    }
+  };
+
+
   const handleMonthlySubmit = async (format) => {
     if (!validateMonthlyData()) {
       return;
@@ -106,7 +239,6 @@ const ReportPage = () => {
       const reportData = {
         reportType: 'monthly',
         year: monthlyData.year,
-        // type: monthlyData.type,
         format: format.toUpperCase()
       };
       console.log('Generating monthly report:', reportData);
@@ -255,24 +387,19 @@ const ReportPage = () => {
       const response = await api.reports.previewReport(previewReportData);
       
       if (response && response.data) {
-        // Handle different response formats
         if (response.data.previewUrl) {
           window.open(response.data.previewUrl, '_blank');
         } else if (response.data instanceof Blob) {
-          // If it's a blob (PDF), create object URL and show in new tab
           const url = window.URL.createObjectURL(response.data);
           window.open(url, '_blank');
           window.URL.revokeObjectURL(url);
         } else if (response.data.previewData) {
-          // If structured preview data is returned
           setPreviewData(response.data.previewData);
           setShowPreview(true);
         } else if (Array.isArray(response.data)) {
-          // If the response data is directly an array of records
           setPreviewData(response.data);
           setShowPreview(true);
         } else {
-          // Handle other response formats
           console.log('Preview data:', response.data);
           setPreviewData(response.data);
           setShowPreview(true);
@@ -334,7 +461,6 @@ const ReportPage = () => {
   const renderPreviewContent = () => {
     if (!previewData) return null;
 
-    // Handle array of visitor records
     if (Array.isArray(previewData)) {
       return (
         <div className="space-y-4">
@@ -427,7 +553,6 @@ const ReportPage = () => {
       );
     }
 
-    // Handle object with structured data
     if (typeof previewData === 'object') {
       return (
         <div className="space-y-4">
@@ -441,7 +566,6 @@ const ReportPage = () => {
       );
     }
 
-    // Handle string data
     return (
       <div className="space-y-4">
         <h3 className="text-lg font-semibold text-gray-900">Preview Data</h3>
@@ -473,10 +597,6 @@ const ReportPage = () => {
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-4">
           <div className="lg:col-span-1">
             <div className="p-6 bg-white rounded-lg shadow-sm">
-              {/* <h2 className="flex items-center mb-4 text-lg font-semibold text-gray-900">
-                <FileText className="w-5 h-5 mr-2" />
-                Reports
-              </h2> */}
               <nav className="space-y-2">
                 <button
                   onClick={() => handleTabChange('monthly')}
@@ -521,97 +641,154 @@ const ReportPage = () => {
               
               {activeTab === 'monthly' && (
                 <div className="p-6">
-                  <div className="grid grid-cols-1 gap-6 mb-8 md:grid-cols-2">
-                    <div>
-                      <label className="block mb-2 text-sm font-medium text-gray-700">
-                        Select Year *
-                      </label>
-                      <div className="relative">
-                        <select
-                          value={monthlyData.year}
-                          onChange={(e) => {
-                            setMonthlyData(prev => ({ ...prev, year: parseInt(e.target.value) }));
-                            clearFieldError('year');
-                          }}
-                          className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white ${
-                            errors.year ? 'border-red-500' : 'border-gray-300'
-                          }`}
-                        >
-                          <option value="">Select Year</option>
-                          {getYearOptions().map(year => (
-                            <option key={year} value={year}>{year}</option>
-                          ))}
-                        </select>
-                        <ChevronDown className="absolute w-4 h-4 text-gray-400 transform -translate-y-1/2 right-3 top-1/2" />
-                      </div>
-                      {errors.year && (
-                        <p className="mt-1 text-sm text-red-500">{errors.year}</p>
-                      )}
+                  {/* Year Selection */}
+                  <div className="mb-8">
+                    <label className="block mb-2 text-sm font-medium text-gray-700">
+                      Select Year *
+                    </label>
+                    <div className="relative max-w-xs">
+                      <select
+                        value={selectedYear}
+                        onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                        className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg appearance-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        {getYearOptions().map(year => (
+                          <option key={year} value={year}>{year}</option>
+                        ))}
+                      </select>
+                      <ChevronDown className="absolute w-4 h-4 text-gray-400 transform -translate-y-1/2 right-3 top-1/2" />
                     </div>
-                    {/* <div>
-                      <label className="block mb-2 text-sm font-medium text-gray-700">
-                        Select Type *
-                      </label>
-                      <div className="relative">
-                        <select
-                          value={monthlyData.type}
-                          onChange={(e) => {
-                            setMonthlyData(prev => ({ ...prev, type: e.target.value }));
-                            clearFieldError('type');
-                          }}
-                          className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white ${
-                            errors.type ? 'border-red-500' : 'border-gray-300'
-                          }`}
-                        >
-                          <option value="">Select Type</option>
-                          <option value="On Arrival">On Arrival</option>
-                          <option value="Schedule">Schedule</option>
-                        </select>
-                        <ChevronDown className="absolute w-4 h-4 text-gray-400 transform -translate-y-1/2 right-3 top-1/2" />
+                  </div>
+
+                  {/* Months Grid */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      Monthly Reports for {selectedYear}
+                    </h3>
+                    <div className="grid gap-4">
+                      {getMonthsForYear().map((month) => (
+                        <div key={month.number} className="p-4 border border-gray-200 rounded-lg bg-gray-50">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-3">
+                              <Calendar className="w-5 h-5 text-purple-600" />
+                              <h4 className="text-lg font-medium text-gray-900">
+                                {month.fullName}
+                              </h4>
+                            </div>
+                            <div className="flex space-x-2">
+                              <button
+                                onClick={() => handleMonthAction(selectedYear, month.number, 'download', 'xls')}
+                                disabled={downloadLoading === `${selectedYear}-${month.number}-download-xls`}
+                                className="flex items-center px-3 py-2 text-sm text-green-800 transition-colors border border-green-800 rounded-lg hover:bg-green-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {downloadLoading === `${selectedYear}-${month.number}-download-xls` ? (
+                                  <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                                ) : (
+                                  <Download className="w-4 h-4 mr-1" />
+                                )}
+                                Excel
+                              </button>
+                              <button
+                                onClick={() => handleMonthAction(selectedYear, month.number, 'download', 'pdf')}
+                                disabled={downloadLoading === `${selectedYear}-${month.number}-download-pdf`}
+                                className="flex items-center px-3 py-2 text-sm text-red-600 transition-colors border border-red-600 rounded-lg hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {downloadLoading === `${selectedYear}-${month.number}-download-pdf` ? (
+                                  <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                                ) : (
+                                  <Download className="w-4 h-4 mr-1" />
+                                )}
+                                PDF
+                              </button>
+                              <button
+                                onClick={() => handleMonthAction(selectedYear, month.number, 'preview')}
+                                disabled={downloadLoading === `${selectedYear}-${month.number}-preview-`}
+                                className="flex items-center px-3 py-2 text-sm text-blue-600 transition-colors border border-blue-600 rounded-lg hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {downloadLoading === `${selectedYear}-${month.number}-preview-` ? (
+                                  <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                                ) : (
+                                  <Eye className="w-4 h-4 mr-1" />
+                                )}
+                                Preview
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Legacy monthly report section - keeping for backward compatibility */}
+                  {/* <div className="pt-8 mt-12 border-t border-gray-200">
+                    <h3 className="mb-6 text-lg font-semibold text-gray-900">Legacy Monthly Report</h3>
+                    <div className="grid grid-cols-1 gap-6 mb-8 md:grid-cols-2">
+                      <div>
+                        <label className="block mb-2 text-sm font-medium text-gray-700">
+                          Select Year *
+                        </label>
+                        <div className="relative">
+                          <select
+                            value={monthlyData.year}
+                            onChange={(e) => {
+                              setMonthlyData(prev => ({ ...prev, year: parseInt(e.target.value) }));
+                              clearFieldError('year');
+                            }}
+                            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white ${
+                              errors.year ? 'border-red-500' : 'border-gray-300'
+                            }`}
+                          >
+                            <option value="">Select Year</option>
+                            {getYearOptions().map(year => (
+                              <option key={year} value={year}>{year}</option>
+                            ))}
+                          </select>
+                          <ChevronDown className="absolute w-4 h-4 text-gray-400 transform -translate-y-1/2 right-3 top-1/2" />
+                        </div>
+                        {errors.year && (
+                          <p className="mt-1 text-sm text-red-500">{errors.year}</p>
+                        )}
                       </div>
-                      {errors.type && (
-                        <p className="mt-1 text-sm text-red-500">{errors.type}</p>
-                      )}
-                    </div> */}
-                  </div>
-                  <div className="flex flex-wrap gap-4">
-                    <button
-                      onClick={() => handleMonthlySubmit('xls')}
-                      disabled={downloadLoading === 'xls'}
-                      className="flex items-center px-4 py-2 text-green-800 transition-colors border border-green-800 rounded-lg hover:bg-green-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {downloadLoading === 'xls' ? (
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      ) : (
-                        <Download className="w-4 h-4 mr-2" />
-                      )}
-                      Download Excel
-                    </button>
-                    <button
-                      onClick={() => handleMonthlySubmit('pdf')}
-                      disabled={downloadLoading === 'pdf'}
-                      className="flex items-center px-4 py-2 text-red-600 transition-colors border border-red-600 rounded-lg hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {downloadLoading === 'pdf' ? (
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      ) : (
-                        <Download className="w-4 h-4 mr-2" />
-                      )}
-                      Download PDF
-                    </button>
-                    <button
-                      onClick={() => handlePreview('monthly')}
-                      disabled={previewLoading}
-                      className="flex items-center px-4 py-2 text-blue-600 transition-colors border border-blue-600 rounded-lg hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {previewLoading ? (
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      ) : (
-                        <Eye className="w-4 h-4 mr-2" />
-                      )}
-                      Preview
-                    </button>
-                  </div>
+                    </div>
+                    <div className="flex flex-wrap gap-4">
+                      <button
+                        onClick={() => handleMonthlySubmit('xls')}
+                        disabled={downloadLoading === 'xls'}
+                        className="flex items-center px-4 py-2 text-green-800 transition-colors border border-green-800 rounded-lg hover:bg-green-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {downloadLoading === 'xls' ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <Download className="w-4 h-4 mr-2" />
+                        )}
+                        Download Excel
+                      </button>
+                      <button
+                        onClick={() => handleMonthlySubmit('pdf')}
+                        disabled={downloadLoading === 'pdf'}
+                        className="flex items-center px-4 py-2 text-red-600 transition-colors border border-red-600 rounded-lg hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {downloadLoading === 'pdf' ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <Download className="w-4 h-4 mr-2" />
+                        )}
+                        Download PDF
+                      </button>
+                      <button
+                        onClick={() => handlePreview('monthly')}
+                        disabled={previewLoading}
+                        className="flex items-center px-4 py-2 text-blue-600 transition-colors border border-blue-600 rounded-lg hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {previewLoading ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <Eye className="w-4 h-4 mr-2" />
+                        )}
+                        Preview
+                      </button>
+                    </div>
+                  </div> */}
                 </div>
               )}
               
@@ -622,103 +799,88 @@ const ReportPage = () => {
                       <label className="block mb-2 text-sm font-medium text-gray-700">
                         From Date *
                       </label>
-                      <div className="flex space-x-2">
-                        <input
-                          type="date"
-                          value={customData.fromDate}
-                          onChange={(e) => {
-                            setCustomData(prev => ({
-                              ...prev,
-                              fromDate: e.target.value,
-                              fromTime: e.target.value ? getCurrentTime() : ''
-                            }));
-                            clearFieldError('fromDate');
-                            clearFieldError('dateRange');
-                            clearFieldError('futureDate');
-                          }}
-                          className={`flex-1 px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                            errors.fromDate || errors.dateRange || errors.futureDate ? 'border-red-500' : 'border-gray-300'
-                          }`}
-                        />
-                        <input
-                          type="time"
-                          value={customData.fromTime}
-                          onChange={(e) => {
-                            setCustomData(prev => ({ ...prev, fromTime: e.target.value }));
-                            clearFieldError('dateRange');
-                          }}
-                          className="w-32 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
-                      </div>
+                      <input
+                        type="date"
+                        value={customData.fromDate}
+                        onChange={(e) => {
+                          setCustomData(prev => ({ ...prev, fromDate: e.target.value }));
+                          clearFieldError('fromDate');
+                          clearFieldError('dateRange');
+                          clearFieldError('futureDate');
+                        }}
+                        className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                          errors.fromDate || errors.dateRange || errors.futureDate ? 'border-red-500' : 'border-gray-300'
+                        }`}
+                      />
                       {errors.fromDate && (
                         <p className="mt-1 text-sm text-red-500">{errors.fromDate}</p>
                       )}
                     </div>
+                    
+                    <div>
+                      <label className="block mb-2 text-sm font-medium text-gray-700">
+                        From Time
+                      </label>
+                      <input
+                        type="time"
+                        value={customData.fromTime}
+                        onChange={(e) => {
+                          setCustomData(prev => ({ ...prev, fromTime: e.target.value }));
+                          clearFieldError('dateRange');
+                        }}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                    
                     <div>
                       <label className="block mb-2 text-sm font-medium text-gray-700">
                         To Date *
                       </label>
-                      <div className="flex space-x-2">
-                        <input
-                          type="date"
-                          value={customData.toDate}
-                          onChange={(e) => {
-                            setCustomData(prev => ({
-                              ...prev,
-                              toDate: e.target.value,
-                              toTime: e.target.value ? getCurrentTime() : ''
-                            }));
-                            clearFieldError('toDate');
-                            clearFieldError('dateRange');
-                            clearFieldError('futureDate');
-                          }}
-                          className={`flex-1 px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                            errors.toDate || errors.dateRange || errors.futureDate ? 'border-red-500' : 'border-gray-300'
-                          }`}
-                        />
-                        <input
-                          type="time"
-                          value={customData.toTime}
-                          onChange={(e) => {
-                            setCustomData(prev => ({ ...prev, toTime: e.target.value }));
-                            clearFieldError('dateRange');
-                          }}
-                          className="w-32 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
-                      </div>
+                      <input
+                        type="date"
+                        value={customData.toDate}
+                        onChange={(e) => {
+                          setCustomData(prev => ({ ...prev, toDate: e.target.value }));
+                          clearFieldError('toDate');
+                          clearFieldError('dateRange');
+                          clearFieldError('futureDate');
+                        }}
+                        className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                          errors.toDate || errors.dateRange || errors.futureDate ? 'border-red-500' : 'border-gray-300'
+                        }`}
+                      />
                       {errors.toDate && (
                         <p className="mt-1 text-sm text-red-500">{errors.toDate}</p>
                       )}
-                      {(errors.dateRange || errors.futureDate) && (
-                        <p className="mt-1 text-sm text-red-500">{errors.dateRange || errors.futureDate}</p>
+                    </div>
+                    
+                    <div>
+                      <label className="block mb-2 text-sm font-medium text-gray-700">
+                        To Time
+                      </label>
+                      <input
+                        type="time"
+                        value={customData.toTime}
+                        onChange={(e) => {
+                          setCustomData(prev => ({ ...prev, toTime: e.target.value }));
+                          clearFieldError('dateRange');
+                        }}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                  </div>
+                  
+                  {(errors.dateRange || errors.futureDate) && (
+                    <div className="mb-6">
+                      {errors.dateRange && (
+                        <p className="text-sm text-red-500">{errors.dateRange}</p>
+                      )}
+                      {errors.futureDate && (
+                        <p className="text-sm text-red-500">{errors.futureDate}</p>
                       )}
                     </div>
-                    {/* <div className="md:col-span-2">
-                      <label className="block mb-2 text-sm font-medium text-gray-700">
-                        Select Type *
-                      </label>
-                      <div className="relative max-w-md">
-                        <select
-                          value={customData.type}
-                          onChange={(e) => {
-                            setCustomData(prev => ({ ...prev, type: e.target.value }));
-                            clearFieldError('customType');
-                          }}
-                          className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white ${
-                            errors.customType ? 'border-red-500' : 'border-gray-300'
-                          }`}
-                        >
-                          <option value="">Select Type</option>
-                          <option value="On Arrival">On Arrival</option>
-                          <option value="Schedule">Schedule</option>
-                        </select>
-                        <ChevronDown className="absolute w-4 h-4 text-gray-400 transform -translate-y-1/2 right-3 top-1/2" />
-                      </div>
-                      {errors.customType && (
-                        <p className="mt-1 text-sm text-red-500">{errors.customType}</p>
-                      )}
-                    </div> */}
-                  </div>
+                  )}
+                  
                   <div className="flex flex-wrap gap-4">
                     <button
                       onClick={() => handleCustomSubmit('xls')}
@@ -763,21 +925,21 @@ const ReportPage = () => {
           </div>
         </div>
       </div>
-
+      
       {/* Preview Modal */}
       {showPreview && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
-          <div className="w-full max-w-6xl max-h-[90vh] bg-white rounded-lg shadow-xl overflow-hidden">
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="w-full max-w-4xl mx-4 bg-white rounded-lg shadow-xl max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between p-6 border-b">
               <h2 className="text-xl font-semibold text-gray-900">Report Preview</h2>
               <button
                 onClick={closePreview}
-                className="p-2 text-gray-400 transition-colors rounded-lg hover:text-gray-600 hover:bg-gray-100"
+                className="p-2 text-gray-400 transition-colors rounded-full hover:text-gray-600 hover:bg-gray-100"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+            <div className="flex-1 p-6 overflow-auto">
               {renderPreviewContent()}
             </div>
           </div>

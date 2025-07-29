@@ -91,6 +91,7 @@ export const api = {
     checkin: (visitorId) => axiosInstance.post(`/visitors/visitors/${visitorId}/entry-exit/`, { action: 'entry' }),
     checkout: (visitorId) => axiosInstance.post(`/visitors/visitors/${visitorId}/entry-exit/`, { action: 'exit' }),
     getQR: (visitorId) => axiosInstance.get(`/visitors/visitors/${visitorId}/`),
+    reschedule: (visitorId, payload) => axiosInstance.post(`/visitors/visitors/${visitorId}/reschedule/`, payload),
   },
   // Organization endpoints
   organization: {
@@ -148,18 +149,45 @@ export const api = {
   },
   // Report endpoints
   reports: {
-    generateMonthlyExcel: (reportData) => axiosInstance.get('/reports/monthly/excel', reportData, {
-      responseType: 'blob',
-      headers: {
-        'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-      }
-    }),
-    generateMonthlyPdf: (reportData) => axiosInstance.post('/reports/monthly/pdf', reportData, {
-      responseType: 'blob',
-      headers: {
-        'Accept': 'application/pdf'
-      }
-    }),
+    generateMonthlyExcel: (reportData) => {
+      const queryString = new URLSearchParams({
+        year: reportData.year,
+        month: reportData.month,
+      }).toString();
+
+      return axiosInstance.get(`/reports/monthly-visitor-excel/?${queryString}`, {
+        responseType: 'blob',
+        headers: {
+          Accept: '*/*',
+        },
+      });
+    },
+    generateMonthlyPdf: (reportData) => {
+      const queryString = new URLSearchParams({
+        year: reportData.year,
+        month: reportData.month,
+      }).toString();
+
+      return axiosInstance.get(`/reports/monthly-visitor-pdf/?${queryString}`, {
+        responseType: 'blob',
+        headers: {
+          Accept: '*/*',
+        },
+      });
+    },
+    previewMonthlyReport: (reportData) => {
+      const queryString = new URLSearchParams({
+        year: reportData.year,
+        month: reportData.month,
+      }).toString();
+
+      return axiosInstance.get(`/reports/monthly-visitor-pdf/?${queryString}&preview=true`, {
+        responseType: 'blob',
+        headers: {
+          Accept: '*/*',
+        },
+      });
+    },
     generateCustomExcel: (reportData) => {
       const queryString = new URLSearchParams({
         from_date: reportData.fromDate,

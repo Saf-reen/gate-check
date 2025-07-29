@@ -34,7 +34,18 @@ const Sidebar = ({
   const isSectionActive = (sectionId, route) => {
     const currentPath = location.pathname.toLowerCase();
     const targetRoute = route.toLowerCase();
-    return currentPath === targetRoute;
+    
+    // Direct route match
+    if (currentPath === targetRoute) {
+      return true;
+    }
+    
+    // Additional check for profile section - handle both /profile and /profilepage
+    if (sectionId === "profile") {
+      return currentPath === "/profile" || currentPath === "/profilepage";
+    }
+    
+    return false;
   };
 
   const sidebarSections = [

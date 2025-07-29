@@ -21,9 +21,9 @@ const Dashboard = ({ user, onLogout, totalVisitors = 0, totalVendors = 0 }) => {
     navigate('/visitors');
   };
 
-  const handleVendorsNavigation = () => {
-    navigate('/vendors');
-  };
+  // const handleVendorsNavigation = () => {
+  //   navigate('/vendors');
+  // };
 
   const renderContent = () => {
     switch (activeTab) {
@@ -105,22 +105,22 @@ const Dashboard = ({ user, onLogout, totalVisitors = 0, totalVendors = 0 }) => {
             </div>
             
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 gap-6 mt-6 md:grid-cols-2 lg:grid-cols-6">
+            <div className="grid grid-cols-1 gap-6 mt-6 md:grid-cols-3 lg:grid-cols-8">
               <div
                 onClick={handleVisitorsNavigation}
-                className="p-6 transition-all duration-300 bg-transparent rounded-lg shadow-lg cursor-pointer hover:shadow-xl hover:-translate-y-1 hover:border-purple-200"
+                className="p-2 transition-all duration-300 bg-transparent cursor-pointer hover:shadow-xl hover:-translate-y-1 hover:border-purple-200"
               >
                 <div className="flex flex-col items-center">
-                  <div className="flex items-center justify-center w-12 h-12 mb-3 rounded-full shadow-md bg-gradient-to-r from-purple-500 to-purple-600">
-                    <Users className="w-6 h-6 text-white" />
+                  <div className="flex items-center justify-center w-10 h-10 mb-3 bg-transparent border border-purple-800 rounded-full shadow-md">
+                    <Users className="w-4 h-4 text-purple-800" />
                   </div>
-                  <p className="mb-1 text-3xl font-bold text-gray-900">{totalVisitors}</p>
-                  <h3 className="text-lg font-semibold text-gray-700">Visitors</h3>
-                  <p className="mt-1 text-sm text-gray-500">Total registered</p>
+                  <p className="mb-1 text-2xl font-bold text-gray-900">{totalVisitors}</p>
+                  <h3 className="font-semibold text-gray-700 text-md">Visitors</h3>
+                  {/* <p className="mt-1 text-xs text-gray-500">Total registered</p> */}
                 </div>
               </div>
               
-              <div
+              {/* <div
                 onClick={handleVendorsNavigation}
                 className="p-6 transition-all duration-300 bg-transparent border border-gray-100 rounded-lg shadow-lg cursor-pointer hover:shadow-xl hover:-translate-y-1 hover:border-purple-200"
               >
@@ -132,7 +132,7 @@ const Dashboard = ({ user, onLogout, totalVisitors = 0, totalVendors = 0 }) => {
                   <h3 className="text-lg font-semibold text-gray-700">Vendors</h3>
                   <p className="mt-1 text-sm text-gray-500">Total registered</p>
                 </div>
-              </div>
+              </div> */}
               
               {/* Additional stats cards can be added here */}
               {/* <div className="p-6 bg-white border border-gray-100 rounded-lg shadow-lg">
