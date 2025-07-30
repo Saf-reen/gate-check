@@ -59,13 +59,52 @@ const GateCheck = ({ onVisitorCountChange, userCompany, user, onVendorsCountChan
     valid_until: ''
   });
 
+  // Helper function to apply frontend filters to visitor data
+  const applyFilters = useCallback((data) => {
+    if (!Array.isArray(data)) {
+      return [];
+    }
+
+    let filtered = [...data];
+
+    // Apply search filter
+    if (searchTerm && searchTerm.trim()) {
+      const searchLower = searchTerm.toLowerCase().trim();
+      filtered = filtered.filter(visitor => 
+        visitor.visitor_name?.toLowerCase().includes(searchLower) ||
+        visitor.mobile_number?.includes(searchTerm) ||
+        visitor.email_id?.toLowerCase().includes(searchLower) ||
+        visitor.coming_from?.toLowerCase().includes(searchLower) ||
+        visitor.purpose_of_visit?.toLowerCase().includes(searchLower) ||
+        visitor.pass_id?.toLowerCase().includes(searchLower)
+      );
+    }
+
+    // Apply status filter
+    if (filterStatus !== 'all') {
+      filtered = filtered.filter(visitor => visitor.status === filterStatus);
+    }
+
+    // Apply pass type filter
+    if (filterType !== 'all') {
+      filtered = filtered.filter(visitor => visitor.pass_type === filterType);
+    }
+
+    // Apply category filter - use category_name from backend
+    if (filterCategory !== 'all') {
+      filtered = filtered.filter(visitor => visitor.category_name === filterCategory);
+    }
+
+    return filtered;
+  }, [searchTerm, filterStatus, filterType, filterCategory]);
+
   const fetchCategories = useCallback(async () => {
-    setCategoriesLoading(true);
     try {
+      setCategoriesLoading(true);
       const response = await api.visitors.category();
       if (response && response.data) {
         const categoriesData = response.data.categories || response.data;
-        console.log(categoriesData);
+        console.log('Categories:', categoriesData);
         if (Array.isArray(categoriesData)) {
           setCategories(categoriesData);
         } else {
@@ -77,137 +116,15 @@ const GateCheck = ({ onVisitorCountChange, userCompany, user, onVendorsCountChan
     } catch (error) {
       console.error('Error fetching categories:', error);
       setCategories([]);
+      setErrors(prev => ({ ...prev, categories: 'Failed to load categories' }));
     } finally {
       setCategoriesLoading(false);
     }
   }, []);
 
-  // Function to calculate counts from visitors array
+  // Function to calculate counts from visitors array with filters applied
   const calculateVisitorCounts = useCallback((visitorsData) => {
     if (!Array.isArray(visitorsData)) {
-      const resetCounts = {
-        totalVisitors: 0,
-        totalVendors: 0,
-        approved: 0,
-        pending: 0,
-        rejected: 0
-      };
-      
-      setTotalVisitors(resetCounts.totalVisitors);
-      setTotalVendors(resetCounts.totalVendors);
-      setApprovedCount(resetCounts.approved);
-      setPendingCount(resetCounts.pending);
-      setRejectedCount(resetCounts.rejected);
-      
-      // Notify parent components
-      if (onVisitorCountChange) {
-        onVisitorCountChange(resetCounts.totalVisitors);
-      }
-      if (onVendorsCountChange) {
-        onVendorsCountChange(resetCounts.totalVendors);
-      }
-      return;
-    }
-
-    // Apply filters to match the current filter state
-    let filteredData = visitorsData;
-
-    // Apply search filter
-    if (searchTerm) {
-      filteredData = filteredData.filter(visitor => 
-        visitor.visitor_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        visitor.mobile_number?.includes(searchTerm) ||
-        visitor.email_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        visitor.coming_from?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        visitor.purpose_of_visit?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    // Apply category filter
-    if (filterCategory !== 'all') {
-      filteredData = filteredData.filter(visitor => visitor.category === filterCategory);
-    }
-
-    // Calculate counts based on filtered data
-    const total = filteredData.length;
-    const approved = filteredData.filter(visitor => visitor.status === 'APPROVED').length;
-    const pending = filteredData.filter(visitor => visitor.status === 'PENDING').length;
-    const rejected = filteredData.filter(visitor => visitor.status === 'REJECTED').length;
-
-    setTotalVisitors(total);
-    setTotalVendors(total);
-    setApprovedCount(approved);
-    setPendingCount(pending);
-    setRejectedCount(rejected);
-    
-    // Notify parent components of the updated counts
-    if (onVisitorCountChange) {
-      onVisitorCountChange(total);
-    }
-    if (onVendorsCountChange) {
-      onVendorsCountChange(total);
-    }
-  }, [searchTerm, filterCategory, onVisitorCountChange, onVendorsCountChange]);
-
-  const fetchVisitorCounts = useCallback(async () => {
-    try {
-      if (showRecurring) {
-        const baseParams = {
-          ...(searchTerm && { search: searchTerm }),
-          ...(filterCategory !== 'all' && { category: filterCategory })
-        };
-
-        const totalResponse = await api.visitors.filterPassType({
-          ...baseParams,
-          count_only: true
-        });
-        
-        const newTotalVisitors = totalResponse?.data?.count || 0;
-        const newTotalVendors = totalResponse?.data?.vendors_count || 0;
-        
-        setTotalVisitors(newTotalVisitors);
-        setTotalVendors(newTotalVendors);
-        
-        // Call the parent callbacks immediately when counts are updated
-        if (onVisitorCountChange) {
-          onVisitorCountChange(newTotalVisitors);
-        }
-        if (onVendorsCountChange) {
-          onVendorsCountChange(newTotalVendors);
-        }
-
-        setApprovedCount(0);
-        setPendingCount(0);
-        setRejectedCount(0);
-
-        const [oneTimeResponse, recurringResponse, permanentResponse] = await Promise.all([
-          api.visitors.filterPassType({ ...baseParams, pass_type: 'ONE_TIME', count_only: true }),
-          api.visitors.filterPassType({ ...baseParams, pass_type: 'RECURRING', count_only: true }),
-          api.visitors.filterPassType({ ...baseParams, pass_type: 'PERMANENT', count_only: true })
-        ]);
-
-        setOneTimeCount(oneTimeResponse?.data?.count || 0);
-        setRecurringCount(recurringResponse?.data?.count || 0);
-        setPermanentCount(permanentResponse?.data?.count || 0);
-      } else {
-        // For non-recurring, fetch only pass type counts from backend
-        const baseParams = {
-          ...(searchTerm && { search: searchTerm }),
-          ...(filterCategory !== 'all' && { category: filterCategory })
-        };
-
-        const [oneTimeResponse, recurringResponse, permanentResponse] = await Promise.all([
-          api.visitors.filterPassType({ ...baseParams, pass_type: 'ONE_TIME', count_only: true }),
-          api.visitors.filterPassType({ ...baseParams, pass_type: 'RECURRING', count_only: true }),
-          api.visitors.filterPassType({ ...baseParams, pass_type: 'PERMANENT', count_only: true })
-        ]);
-
-        setOneTimeCount(oneTimeResponse?.data?.count || 0);
-        setRecurringCount(recurringResponse?.data?.count || 0);
-        setPermanentCount(permanentResponse?.data?.count || 0);
-      }
-    } catch (error) {
-      console.error('Error fetching visitor counts:', error);
       const resetCounts = {
         totalVisitors: 0,
         totalVendors: 0,
@@ -228,22 +145,126 @@ const GateCheck = ({ onVisitorCountChange, userCompany, user, onVendorsCountChan
       setRecurringCount(resetCounts.recurring);
       setPermanentCount(resetCounts.permanent);
       
-      // Notify parent components of the reset
+      // Notify parent components
       if (onVisitorCountChange) {
         onVisitorCountChange(resetCounts.totalVisitors);
       }
       if (onVendorsCountChange) {
         onVendorsCountChange(resetCounts.totalVendors);
       }
+      return;
+    }
+
+    // Apply current filters to get filtered data
+    const filteredData = applyFilters(visitorsData);
+    
+    // Calculate status counts from filtered data
+    const total = filteredData.length;
+    const approved = filteredData.filter(visitor => visitor.status === 'APPROVED').length;
+    const pending = filteredData.filter(visitor => visitor.status === 'PENDING').length;
+    const rejected = filteredData.filter(visitor => visitor.status === 'REJECTED').length;
+
+    // Calculate pass type counts from filtered data (excluding status filter for pass type counts)
+    let passTypeFilteredData = [...visitorsData];
+    
+    // Apply search filter
+    if (searchTerm && searchTerm.trim()) {
+      const searchLower = searchTerm.toLowerCase().trim();
+      passTypeFilteredData = passTypeFilteredData.filter(visitor => 
+        visitor.visitor_name?.toLowerCase().includes(searchLower) ||
+        visitor.mobile_number?.includes(searchTerm) ||
+        visitor.email_id?.toLowerCase().includes(searchLower) ||
+        visitor.coming_from?.toLowerCase().includes(searchLower) ||
+        visitor.purpose_of_visit?.toLowerCase().includes(searchLower) ||
+        visitor.pass_id?.toLowerCase().includes(searchLower)
+      );
+    }
+
+    // Apply category filter for pass type counts
+    if (filterCategory !== 'all') {
+      passTypeFilteredData = passTypeFilteredData.filter(visitor => visitor.category_name === filterCategory);
+    }
+
+    const oneTime = passTypeFilteredData.filter(visitor => visitor.pass_type === 'ONE_TIME').length;
+    const recurring = passTypeFilteredData.filter(visitor => visitor.pass_type === 'RECURRING').length;
+    const permanent = passTypeFilteredData.filter(visitor => visitor.pass_type === 'PERMANENT').length;
+
+    setTotalVisitors(total);
+    setTotalVendors(total);
+    setApprovedCount(approved);
+    setPendingCount(pending);
+    setRejectedCount(rejected);
+    setOneTimeCount(oneTime);
+    setRecurringCount(recurring);
+    setPermanentCount(permanent);
+    
+    // Notify parent components of the updated counts
+    if (onVisitorCountChange) {
+      onVisitorCountChange(total);
+    }
+    if (onVendorsCountChange) {
+      onVendorsCountChange(total);
+    }
+  }, [searchTerm, filterCategory, applyFilters, onVisitorCountChange, onVendorsCountChange]);
+
+  const fetchVisitorCounts = useCallback(async () => {
+    if (!showRecurring) {
+      // For non-recurring, counts are calculated from fetched data
+      return;
+    }
+
+    try {
+      const baseParams = {
+        ...(searchTerm && { search: searchTerm }),
+        ...(filterCategory !== 'all' && { category: filterCategory })
+      };
+
+      const totalResponse = await api.visitors.filterPassType({
+        ...baseParams,
+        count_only: true
+      });
+      
+      console.log('Total Response:', totalResponse.data);
+      const newTotalVisitors = totalResponse?.data?.count || 0;
+      const newTotalVendors = totalResponse?.data?.vendors_count || 0;
+      
+      setTotalVisitors(newTotalVisitors);
+      setTotalVendors(newTotalVendors);
+      
+      // Call the parent callbacks immediately when counts are updated
+      if (onVisitorCountChange) {
+        onVisitorCountChange(newTotalVisitors);
+      }
+      if (onVendorsCountChange) {
+        onVendorsCountChange(newTotalVendors);
+      }
+
+      setApprovedCount(0);
+      setPendingCount(0);
+      setRejectedCount(0);
+
+      const [oneTimeResponse, recurringResponse, permanentResponse] = await Promise.all([
+        api.visitors.filterPassType({ ...baseParams, pass_type: 'ONE_TIME', count_only: true }),
+        api.visitors.filterPassType({ ...baseParams, pass_type: 'RECURRING', count_only: true }),
+        api.visitors.filterPassType({ ...baseParams, pass_type: 'PERMANENT', count_only: true })
+      ]);
+
+      setOneTimeCount(oneTimeResponse?.data?.count || 0);
+      setRecurringCount(recurringResponse?.data?.count || 0);
+      setPermanentCount(permanentResponse?.data?.count || 0);
+    } catch (error) {
+      console.error('Error fetching visitor counts:', error);
+      setErrors(prev => ({ ...prev, counts: 'Failed to load visitor counts' }));
     }
   }, [searchTerm, filterCategory, showRecurring, onVisitorCountChange, onVendorsCountChange]);
 
-
-  const fetchVisitors = useCallback(async (params = {}) => {
-    setLoading(true);
+  const fetchVisitors = useCallback(async () => {
     try {
+      setLoading(true);
+      setErrors(prev => ({ ...prev, general: '' })); // Clear previous errors
+      
+      // For API calls, we still send the backend expected parameters
       const filterParams = {
-        ...params,
         ...(searchTerm && { search: searchTerm }),
         ...(filterStatus !== 'all' && { status: filterStatus }),
         ...(filterType !== 'all' && { pass_type: filterType }),
@@ -256,7 +277,9 @@ const GateCheck = ({ onVisitorCountChange, userCompany, user, onVendorsCountChan
           const recurringData = recurringResponse.data.visitors || recurringResponse.data;
           if (Array.isArray(recurringData)) {
             setRecurringVisitors(recurringData);
-            setFilteredVisitors(recurringData);
+            // Apply frontend filters to the data
+            const filtered = applyFilters(recurringData);
+            setFilteredVisitors(filtered);
           } else {
             setRecurringVisitors([]);
             setFilteredVisitors([]);
@@ -265,12 +288,14 @@ const GateCheck = ({ onVisitorCountChange, userCompany, user, onVendorsCountChan
       } else {
         const visitorsResponse = await api.visitors.getAll(filterParams);
         console.log('Visitors Response:', visitorsResponse);
-        console.log('inside',visitorsResponse.data.is_inside);
+        console.log('inside', visitorsResponse.data?.is_inside);
         if (visitorsResponse && visitorsResponse.data) {
           const visitorsData = visitorsResponse.data.visitors || visitorsResponse.data;
           if (Array.isArray(visitorsData)) {
             setVisitors(visitorsData);
-            setFilteredVisitors(visitorsData);
+            // Apply frontend filters to the data
+            const filtered = applyFilters(visitorsData);
+            setFilteredVisitors(filtered);
           } else {
             setVisitors([]);
             setFilteredVisitors([]);
@@ -278,49 +303,91 @@ const GateCheck = ({ onVisitorCountChange, userCompany, user, onVendorsCountChan
         }
       }
     } catch (error) {
-      setErrors({ general: 'Failed to load visitors data. Please try again.' });
+      console.error('Error fetching visitors:', error);
+      setErrors(prev => ({ ...prev, general: 'Failed to load visitors data. Please try again.' }));
       setVisitors([]);
       setRecurringVisitors([]);
       setFilteredVisitors([]);
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, filterStatus, filterType, filterCategory, showRecurring]);
+  }, [searchTerm, filterStatus, filterType, filterCategory, showRecurring, applyFilters]);
 
-  // Calculate frontend counts whenever visitors data changes
+  // Auto refresh function that refreshes all data
+  const autoRefresh = useCallback(async () => {
+    console.log('Auto refreshing data...');
+    try {
+      // Clear any previous errors
+      setErrors({});
+      
+      // Fetch data sequentially to avoid race conditions
+      await fetchVisitors();
+      await fetchVisitorCounts();
+      await fetchCategories();
+      
+      console.log('Auto refresh completed successfully');
+    } catch (error) {
+      console.error('Error during auto refresh:', error);
+      setErrors(prev => ({ ...prev, general: 'Failed to refresh data. Please try again.' }));
+    }
+  }, [fetchVisitors, fetchVisitorCounts, fetchCategories]);
+
+  // Calculate frontend counts whenever visitors data or filters change
   useEffect(() => {
     if (!showRecurring && visitors.length >= 0) {
       calculateVisitorCounts(visitors);
+      // Also update filtered visitors when filters change
+      const filtered = applyFilters(visitors);
+      setFilteredVisitors(filtered);
     }
-  }, [visitors, calculateVisitorCounts, showRecurring]);
+  }, [visitors, calculateVisitorCounts, showRecurring, applyFilters]);
 
+  // Update filtered visitors when recurring visitors change
   useEffect(() => {
-    fetchCategories();
-    fetchVisitorCounts();
-  }, [fetchCategories, fetchVisitorCounts]);
-
-  useEffect(() => {
-    fetchVisitors();
-  }, [fetchVisitors]);
-
-  useEffect(() => {
-    if (onVisitorCountChange && typeof onVisitorCountChange === 'function') {
-      onVisitorCountChange(totalVisitors);
+    if (showRecurring && recurringVisitors.length >= 0) {
+      const filtered = applyFilters(recurringVisitors);
+      setFilteredVisitors(filtered);
     }
-  }, [totalVisitors, onVisitorCountChange]);
+  }, [recurringVisitors, showRecurring, applyFilters]);
 
+  // Initial data load
   useEffect(() => {
-    if (onVendorsCountChange && typeof onVendorsCountChange === 'function') {
-      onVendorsCountChange(totalVendors);
-    }
-  }, [totalVendors, onVendorsCountChange]);
+    const loadInitialData = async () => {
+      await fetchCategories();
+      await fetchVisitors();
+      if (showRecurring) {
+        await fetchVisitorCounts();
+      }
+    };
+    
+    loadInitialData();
+  }, [showRecurring]); // Only depend on showRecurring for initial load
 
+  // Handle search with debounce
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
+    if (searchTerm !== '') {
+      const timeoutId = setTimeout(() => {
+        fetchVisitors();
+      }, 500);
+      return () => clearTimeout(timeoutId);
+    } else if (searchTerm === '') {
+      // If search is cleared, fetch immediately
       fetchVisitors();
-    }, 500);
-    return () => clearTimeout(timeoutId);
-  }, [searchTerm]);
+    }
+  }, [searchTerm, fetchVisitors]);
+
+  // Handle filter changes
+  useEffect(() => {
+    if (filterStatus !== 'all' || filterType !== 'all' || filterCategory !== 'all') {
+      const timeoutId = setTimeout(() => {
+        fetchVisitors();
+        if (showRecurring) {
+          fetchVisitorCounts();
+        }
+      }, 100);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [filterStatus, filterType, filterCategory, showRecurring, fetchVisitors, fetchVisitorCounts]);
 
   const validatePhoneNumber = (phone) => {
     const phoneRegex = /^[6-9]\d{9}$/;
@@ -492,12 +559,14 @@ const GateCheck = ({ onVisitorCountChange, userCompany, user, onVendorsCountChan
 
       if (response && response.data) {
         setSuccessMessage(`Visitor ${formData.pass_type === 'RECURRING' ? 'recurring pass' : ''} added successfully!`);
-        fetchVisitors();
-        fetchVisitorCounts();
+        
+        // Auto refresh after successful submission
+        await autoRefresh();
+        
         setTimeout(() => {
           setShowAddModal(false);
           resetForm();
-        }, 1500);
+        }, 1000);
       }
     } catch (error) {
       let errorMessage = 'Failed to add visitor. Please try again.';
@@ -533,29 +602,38 @@ const GateCheck = ({ onVisitorCountChange, userCompany, user, onVendorsCountChan
     }
   };
 
-  const handleVisitorUpdate = async (visitorId, newStatus, actionType) => {
+  const handleVisitorUpdate = async (visitorId, newStatus, actionType, additionalData = {}) => {
     try {
+      // Update visitor status
       await api.visitors.updateStatus(visitorId, {
         status: newStatus,
-        action_type: actionType
+        action_type: actionType,
+        ...additionalData
       });
-      fetchVisitors();
-      fetchVisitorCounts();
+      
+      // Auto refresh after visitor update
+      console.log('Auto refreshing after visitor update...');
+      await autoRefresh();
+      
     } catch (error) {
-      setErrors({ general: 'Failed to update visitor status. Please try again.' });
+      console.error('Error updating visitor:', error);
+      setErrors(prev => ({ ...prev, general: 'Failed to update visitor status. Please try again.' }));
     }
   };
 
   const handleFilterStatusChange = (newStatus) => {
     setFilterStatus(newStatus);
+    // fetchVisitors will be called by useEffect
   };
 
   const handleFilterTypeChange = (newType) => {
     setFilterType(newType);
+    // fetchVisitors will be called by useEffect
   };
 
   const handleFilterCategoryChange = (newCategory) => {
     setFilterCategory(newCategory);
+    // fetchVisitors will be called by useEffect
   };
 
   const handleClearFilters = () => {
@@ -563,11 +641,13 @@ const GateCheck = ({ onVisitorCountChange, userCompany, user, onVendorsCountChan
     setFilterType('all');
     setFilterCategory('all');
     setSearchTerm('');
+    // fetchVisitors will be called by useEffect when these values change
   };
 
   const handleRecurringToggle = (newShowRecurring) => {
     setShowRecurring(newShowRecurring);
     setFilteredVisitors([]);
+    // Initial data load useEffect will handle the refresh
   };
 
   const getStatusColor = (status) => {
@@ -578,6 +658,8 @@ const GateCheck = ({ onVisitorCountChange, userCompany, user, onVendorsCountChan
       case 'EXPIRED': return 'text-gray-800 bg-gray-100';
       case 'CANCELLED': return 'text-orange-800 bg-orange-100';
       case 'BLACKLISTED': return 'text-red-800 bg-red-200';
+      case 'CHECKED_IN': return 'text-blue-800 bg-blue-100';
+      case 'CHECKED_OUT': return 'text-purple-800 bg-purple-100';
       default: return 'text-gray-800 bg-gray-100';
     }
   };
@@ -590,6 +672,8 @@ const GateCheck = ({ onVisitorCountChange, userCompany, user, onVendorsCountChan
       case 'EXPIRED': return 'bg-gray-500';
       case 'CANCELLED': return 'bg-orange-500';
       case 'BLACKLISTED': return 'bg-red-600';
+      case 'CHECKED_IN': return 'bg-blue-500';
+      case 'CHECKED_OUT': return 'bg-purple-500';
       default: return 'bg-gray-500';
     }
   };
@@ -604,18 +688,32 @@ const GateCheck = ({ onVisitorCountChange, userCompany, user, onVendorsCountChan
   };
 
   const getCategoryLabel = (categoryValue) => {
-    const category = categories.find(cat => cat.value === categoryValue);
-    return category ? category.name : categoryValue;
+    // First try to find by value field (for form data)
+    const categoryByValue = categories.find(cat => cat.value === categoryValue);
+    if (categoryByValue) {
+      return categoryByValue.name;
+    }
+    
+    // Then try to find by name field (for backend data that sends category_name)
+    const categoryByName = categories.find(cat => cat.name === categoryValue);
+    if (categoryByName) {
+      return categoryByName.name;
+    }
+    
+    // Return the original value if not found
+    return categoryValue;
   };
 
   const exportToExcel = async () => {
     try {
+      setShowExcelDropdown(false);
+      
       const filterParams = {
         ...(searchTerm && { search: searchTerm }),
         ...(filterStatus !== 'all' && { status: filterStatus }),
         ...(filterType !== 'all' && { pass_type: filterType }),
         ...(filterCategory !== 'all' && { category: filterCategory }),
-        export: 'excel'
+        export: 'xls'
       };
 
       const response = showRecurring
@@ -632,30 +730,41 @@ const GateCheck = ({ onVisitorCountChange, userCompany, user, onVendorsCountChan
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+        
+        // Auto refresh after export
+        await autoRefresh();
       }
     } catch (error) {
-      setErrors({ general: 'Failed to export data. Please try again.' });
+      console.error('Error exporting data:', error);
+      setErrors(prev => ({ ...prev, general: 'Failed to export data. Please try again.' }));
     }
-    setShowExcelDropdown(false);
   };
 
   const handleFileUpload = async (event) => {
     const file = event.target.files[0];
     if (file) {
       try {
+        setShowExcelDropdown(false);
+        
         const formData = new FormData();
         formData.append('file', file);
         const response = await api.visitors.uploadExcel(formData);
         if (response && response.data) {
-          fetchVisitors();
-          fetchVisitorCounts();
           setSuccessMessage('Visitors uploaded successfully!');
+          // Auto refresh after file upload
+          await autoRefresh();
         }
       } catch (error) {
-        setErrors({ general: 'Failed to upload file. Please check the format and try again.' });
+        console.error('Error uploading file:', error);
+        setErrors(prev => ({ ...prev, general: 'Failed to upload file. Please check the format and try again.' }));
       }
-      setShowExcelDropdown(false);
     }
+  };
+
+  // Enhanced search handler
+  const handleSearchChange = (newSearchTerm) => {
+    setSearchTerm(newSearchTerm);
+    // fetchVisitors will be called by useEffect with debounce
   };
 
   if (loading) {
@@ -718,7 +827,7 @@ const GateCheck = ({ onVisitorCountChange, userCompany, user, onVendorsCountChan
 
       <SearchBar
         searchTerm={searchTerm}
-        setSearchTerm={setSearchTerm}
+        setSearchTerm={handleSearchChange}
       />
 
       <VisitorTable
@@ -746,6 +855,8 @@ const GateCheck = ({ onVisitorCountChange, userCompany, user, onVendorsCountChan
           submitLoading={submitLoading}
           categories={categories}
           categoriesLoading={categoriesLoading}
+          successMessage={successMessage}
+          userCompany={userCompany}
           user={user}
         />
       )}

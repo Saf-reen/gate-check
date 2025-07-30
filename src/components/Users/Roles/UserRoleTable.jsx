@@ -20,7 +20,7 @@ const UserRoleTable = ({ userRoles, onEdit, onShowEditModal, onDelete }) => {
               <td className="px-6 py-4 text-sm whitespace-nowrap">
                 <button
                   onClick={() => {
-                    onEdit(userRole);
+                    onEdit(userRole.user_role_id);
                     onShowEditModal(true);
                   }}
                   className="text-indigo-600 hover:text-indigo-900"
@@ -28,7 +28,7 @@ const UserRoleTable = ({ userRoles, onEdit, onShowEditModal, onDelete }) => {
                   <Edit size={18} />
                 </button>
                 <button
-                  onClick={() => onDelete(userRole.id)}
+                  onClick={() => onDelete(userRole.user_role_id)}
                   className="ml-4 text-red-600 hover:text-red-900"
                 >
                   <Trash2 size={18} />

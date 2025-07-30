@@ -42,6 +42,7 @@ const RolesPage = () => {
       setError(null);
       const response = await api.roles.getAll(getConfig());
       setRoles(response.data);
+      console.log(response.data);
     } catch (err) {
       console.error('Error fetching roles:', err);
       setError('Failed to load roles. Please try again.');
@@ -96,18 +97,27 @@ const RolesPage = () => {
     if (!window.confirm("Are you sure you want to delete this role?")) {
       return;
     }
-        const token = localStorage.getItem('authToken');
+    
     try {
-      await api.roles.delete(roleId, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      // Use the correct API endpoint that matches your backend
+      // If you have a separate endpoint for deleting roles, use that
+      // For now, using the user-role deletion endpoint as per your backend code
+      await api.roles.delete(roleId, getConfig());
       setRoles(roles.filter(role => role.role_id !== roleId));
       setError(null);
     } catch (err) {
       console.error('Error deleting role:', err);
-      setError(err.response?.data?.message || 'Failed to delete role');
+      // Handle 404 error specifically
+      if (err.response?.status === 404) {
+        setError('Role not found or already deleted.');
+      } else if (err.response?.status === 403) {
+        setError('Permission denied. You do not have permission to delete roles.');
+      } else {
+        setError(err.response?.data?.error || err.response?.data?.message || 'Failed to delete role');
+      }
+      
+      // Refresh the roles list to ensure consistency
+      fetchRoles();
     }
   };
 

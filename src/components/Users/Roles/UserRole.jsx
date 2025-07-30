@@ -76,6 +76,7 @@ const UserRoles = ({ userProfile }) => {
       setError(null);
       const response = await api.userRoles.getAll();
       setUserRoles(response.data);
+      console.log(response.data);      
     } catch (err) {
       console.error('Error fetching user roles:', err);
       setError('Failed to load user roles. Please try again.');
@@ -123,7 +124,7 @@ const UserRoles = ({ userProfile }) => {
       setSubmitting(true);
       const response = await api.userRoles.update(selectedUserRole.user_role_id, selectedUserRole);
       setUserRoles(userRoles.map(ur =>
-        ur.id === selectedUserRole.id ? response.data : ur
+        ur.user_role_id === selectedUserRole.user_role_id ? response.data : ur
       ));
       setShowEditModal(false);
       setSelectedUserRole(null);
@@ -137,16 +138,41 @@ const UserRoles = ({ userProfile }) => {
   };
 
   const handleDeleteUserRole = async (userRoleId) => {
+    // Improved validation - check for null, undefined, or empty string
+    if (userRoleId == null || userRoleId === '' || userRoleId === 0) {
+      console.error('Invalid userRoleId received:', userRoleId);
+      setError('Invalid user role ID. Cannot delete user role.');
+      return;
+    }
+
     if (!window.confirm("Are you sure you want to delete this user role assignment?")) {
       return;
     }
+    
     try {
+      console.log('Deleting user role with ID:', userRoleId);
+      // Call the API with the correct userRoleId parameter
       await api.userRoles.delete(userRoleId);
-      setUserRoles(userRoles.filter(ur => ur.id !== userRoleId));
+      
+      // Remove from local state using the correct ID field
+      setUserRoles(userRoles.filter(ur => ur.user_role_id !== userRoleId));
       setError(null);
+      console.log('Successfully deleted user role:', userRoleId);
+      
     } catch (err) {
       console.error('Error deleting user role:', err);
-      setError(err.response?.data?.message || 'Failed to delete user role');
+      
+      // Handle specific error cases
+      if (err.response?.status === 404) {
+        setError('User role not found or already deleted.');
+      } else if (err.response?.status === 403) {
+        setError('Permission denied. You do not have permission to delete user roles.');
+      } else {
+        setError(err.response?.data?.error || err.response?.data?.message || 'Failed to delete user role');
+      }
+      
+      // Refresh the user roles list to ensure consistency
+      fetchUserRoles();
     }
   };
 

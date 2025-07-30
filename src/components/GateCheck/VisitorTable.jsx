@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../Auth/api';
 import {
@@ -27,20 +27,25 @@ const VisitorTable = ({
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
 
-  // useEffect(() => {
-  //   const handleClickOutside = (event) => {
-  //     if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-  //       setOpenDropdown(null);
-  //     }
-  //   };
-  //   document.addEventListener('mousedown', handleClickOutside);
-  //   return () => {
-  //     document.removeEventListener('mousedown', handleClickOutside);
-  //   };
-  // }, []);
+  // Fixed useEffect for click outside detection
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setOpenDropdown(null);
+      }
+    };
 
-  // Check if visiting date/time is in the past
-  const isVisitingTimeInPast = (visitingDate, visitingTime) => {
+    if (openDropdown !== null) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [openDropdown]);
+
+  // Memoized function to check if visiting time is in the past
+  const isVisitingTimeInPast = useCallback((visitingDate, visitingTime) => {
     if (!visitingDate) return false;
     
     const now = new Date();
@@ -55,10 +60,11 @@ const VisitorTable = ({
     }
     
     return visitDate < now;
-  };
+  }, []);
 
   const handleStatusUpdate = async (visitorId, newStatus, actionType) => {
     setLoadingActions(prev => ({ ...prev, [`${visitorId}-${actionType}`]: true }));
+    
     try {
       let response;
       switch (actionType) {
@@ -117,7 +123,8 @@ const VisitorTable = ({
   const handlePassGeneration = async (visitorId, passType) => {
     setLoadingActions(prev => ({ ...prev, [`${visitorId}-${passType}`]: true }));
     setOpenDropdown(null);
-    console.log("manual clicked")
+    console.log("manual clicked");
+    
     try {
       const visitorData = filteredVisitors.find(visitor => visitor.id === visitorId);
       if (passType === 'manual') {
@@ -143,7 +150,7 @@ const VisitorTable = ({
     setOpenDropdown(null);
   };
 
-  const validateRescheduleForm = () => {
+  const validateRescheduleForm = useCallback(() => {
     const errors = {};
     const now = new Date();
     
@@ -170,7 +177,7 @@ const VisitorTable = ({
     }
     
     return errors;
-  };
+  }, [rescheduleModal.newDate, rescheduleModal.newTime]);
 
   const handleRescheduleSubmit = async (e) => {
     e.preventDefault();
@@ -200,6 +207,7 @@ const VisitorTable = ({
         },
         body: JSON.stringify(payload)
       });
+      
       if (response.ok) {
         const data = await response.json();
         
@@ -243,7 +251,8 @@ const VisitorTable = ({
     });
   };
 
-  const getActionButtons = (visitor) => {
+  // Memoized function to get action buttons
+  const getActionButtons = useCallback((visitor) => {
     const buttons = [];
     
     // PENDING status: Show buttons based on visit timing
@@ -376,7 +385,7 @@ const VisitorTable = ({
     // CHECKED_OUT status: No buttons (visitor has left)
     
     return buttons;
-  };
+  }, [loadingActions, handleStatusUpdate, handleReschedule]);
 
   const toggleDropdown = (visitorId) => {
     setOpenDropdown(openDropdown === visitorId ? null : visitorId);

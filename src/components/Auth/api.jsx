@@ -136,8 +136,8 @@ export const api = {
     getAll: () => axiosInstance.get('/roles/user_role/'),
     create: (userRoleData) => axiosInstance.post('/roles/user_role/', userRoleData),
     update: (userRoleId, userRoleData) => axiosInstance.put(`/roles/user_role/${userRoleId}/`, userRoleData),
-    delete: (userRoleId) => axiosInstance.delete(`/user/roles/${userRoleId}/`),
-    getById: (userRoleId) => axiosInstance.get(`/user/roles/${userRoleId}/`),
+    delete: (userRoleId, userRoleData) => axiosInstance.delete(`/roles/user_role/${userRoleId}/`, userRoleData),
+    getById: (userRoleId) => axiosInstance.get(`/roles/user_role/${userRoleId}/`),
   },
   
   categories: {

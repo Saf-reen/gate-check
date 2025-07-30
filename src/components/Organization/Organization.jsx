@@ -115,10 +115,14 @@ const Organization = ({ userProfile, user, onLogout }) => {
       let errorMessage = 'Failed to load organizations';
       if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
+      } else if (error.response?.data?.username) {  
+        errorMessage = error.response.data.username;
       } else if (error.response?.data?.error) {
         errorMessage = error.response.data.error;
       } else if (error.message) {
         errorMessage = error.message;
+      } else if (error.response?.data?.email){
+        errorMessage = error.response.data.email;
       }
       setErrors({ fetch: errorMessage });
       setUserDataLoading(false);

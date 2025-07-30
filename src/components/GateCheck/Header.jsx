@@ -121,7 +121,7 @@ const Header = ({
                       </div>
                     )}
                     <div className="mb-3">
-                      <label className="block mb-1 text-xs font-medium text-gray-700">Type</label>
+                      <label className="block mb-1 text-xs font-medium text-gray-700">Pass Type</label>
                       <select
                         value={filterType}
                         onChange={(e) => setFilterType(e.target.value)}
