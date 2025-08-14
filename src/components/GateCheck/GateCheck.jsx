@@ -28,6 +28,9 @@ const GateCheck = ({ onVisitorCountChange, userCompany, user, onVendorsCountChan
   const [errors, setErrors] = useState({});
   const [successMessage, setSuccessMessage] = useState('');
 
+  // Add refresh trigger state for manual refreshes
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
   // Counts for filters
   const [totalVisitors, setTotalVisitors] = useState(0);
   const [totalVendors, setTotalVendors] = useState(0);
@@ -313,24 +316,36 @@ const GateCheck = ({ onVisitorCountChange, userCompany, user, onVendorsCountChan
     }
   }, [searchTerm, filterStatus, filterType, filterCategory, showRecurring, applyFilters]);
 
-  // Auto refresh function that refreshes all data
+  // Enhanced auto refresh function with better error handling and logging
   const autoRefresh = useCallback(async () => {
-    console.log('Auto refreshing data...');
+    console.log('🔄 Auto refreshing data...');
     try {
       // Clear any previous errors
       setErrors({});
       
       // Fetch data sequentially to avoid race conditions
       await fetchVisitors();
-      await fetchVisitorCounts();
-      await fetchCategories();
       
-      console.log('Auto refresh completed successfully');
+      // Only fetch visitor counts if in recurring mode
+      if (showRecurring) {
+        await fetchVisitorCounts();
+      }
+      
+      // Categories typically don't change often, so only refresh if needed
+      // await fetchCategories();
+      
+      console.log('✅ Auto refresh completed successfully');
     } catch (error) {
-      console.error('Error during auto refresh:', error);
+      console.error('❌ Error during auto refresh:', error);
       setErrors(prev => ({ ...prev, general: 'Failed to refresh data. Please try again.' }));
     }
-  }, [fetchVisitors, fetchVisitorCounts, fetchCategories]);
+  }, [fetchVisitors, fetchVisitorCounts, showRecurring]);
+
+  // Manual refresh trigger function
+  const triggerRefresh = useCallback(() => {
+    console.log('🔄 Triggering manual refresh...');
+    setRefreshTrigger(prev => prev + 1);
+  }, []);
 
   // Calculate frontend counts whenever visitors data or filters change
   useEffect(() => {
@@ -350,9 +365,18 @@ const GateCheck = ({ onVisitorCountChange, userCompany, user, onVendorsCountChan
     }
   }, [recurringVisitors, showRecurring, applyFilters]);
 
+  // Effect for manual refresh trigger
+  useEffect(() => {
+    if (refreshTrigger > 0) {
+      console.log('🔄 Manual refresh triggered:', refreshTrigger);
+      autoRefresh();
+    }
+  }, [refreshTrigger, autoRefresh]);
+
   // Initial data load
   useEffect(() => {
     const loadInitialData = async () => {
+      console.log('🚀 Loading initial data...');
       await fetchCategories();
       await fetchVisitors();
       if (showRecurring) {
@@ -558,10 +582,23 @@ const GateCheck = ({ onVisitorCountChange, userCompany, user, onVendorsCountChan
       }
 
       if (response && response.data) {
+        console.log('✅ Visitor added successfully, refreshing data...');
         setSuccessMessage(`Visitor ${formData.pass_type === 'RECURRING' ? 'recurring pass' : ''} added successfully!`);
         
-        // Auto refresh after successful submission
-        await autoRefresh();
+        // Enhanced refresh - try both auto refresh and trigger refresh as fallback
+        try {
+          await autoRefresh();
+          console.log('✅ Auto refresh after submit completed');
+          
+          // Additional trigger refresh as backup
+          setTimeout(() => {
+            triggerRefresh();
+          }, 500);
+          
+        } catch (refreshError) {
+          console.error('❌ Auto refresh failed, using trigger refresh:', refreshError);
+          triggerRefresh();
+        }
         
         setTimeout(() => {
           setShowAddModal(false);
@@ -602,22 +639,282 @@ const GateCheck = ({ onVisitorCountChange, userCompany, user, onVendorsCountChan
     }
   };
 
+  // FIXED handleVisitorUpdate function with better error handling and state management
   const handleVisitorUpdate = async (visitorId, newStatus, actionType, additionalData = {}) => {
     try {
-      // Update visitor status
-      await api.visitors.updateStatus(visitorId, {
+      console.log('🔄 Updating visitor status...', { visitorId, newStatus, actionType, additionalData });
+      
+      // Clear any previous errors
+      setErrors(prev => ({ ...prev, general: '' }));
+      
+      // Optimistic update - immediately update the UI
+      const updateVisitorInState = (visitorId, newStatus, additionalData = {}) => {
+        setVisitors(prev => prev.map(visitor => 
+          visitor.id === visitorId 
+            ? { ...visitor, status: newStatus, ...additionalData }
+            : visitor
+        ));
+        
+        setRecurringVisitors(prev => prev.map(visitor => 
+          visitor.id === visitorId 
+            ? { ...visitor, status: newStatus, ...additionalData }
+            : visitor
+        ));
+      };
+
+      // Apply optimistic update for immediate UI feedback
+      updateVisitorInState(visitorId, newStatus, additionalData);
+      
+      // Prepare the payload - adjust based on your backend API expectations
+      const updatePayload = {
         status: newStatus,
         action_type: actionType,
         ...additionalData
-      });
+      };
       
-      // Auto refresh after visitor update
-      console.log('Auto refreshing after visitor update...');
-      await autoRefresh();
+      console.log('📤 Sending update payload:', updatePayload);
+      
+      // Make the API call and wait for response
+      const response = await api.visitors.updateStatus(visitorId, updatePayload);
+      
+      console.log('✅ Update response:', response);
+      
+      // Show success message
+      setSuccessMessage(`Visitor status updated to ${newStatus.toLowerCase().replace('_', ' ')}`);
+      
+      // Wait a bit for backend to process (if needed)
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Enhanced refresh with better error handling
+      console.log('✅ Visitor updated, refreshing data...');
+      
+      try {
+        // Try auto refresh first
+        await autoRefresh();
+        console.log('✅ Auto refresh after update completed');
+        
+      } catch (refreshError) {
+        console.error('❌ Auto refresh failed, trying manual trigger:', refreshError);
+        
+        // Fallback to trigger refresh
+        triggerRefresh();
+        
+        // If that fails too, try direct fetch
+        setTimeout(async () => {
+          try {
+            await fetchVisitors();
+            if (showRecurring) {
+              await fetchVisitorCounts();
+            }
+          } catch (directFetchError) {
+            console.error('❌ Direct fetch also failed:', directFetchError);
+          }
+        }, 1000);
+      }
+      
+      // Clear success message after delay
+      setTimeout(() => {
+        setSuccessMessage('');
+      }, 3000);
       
     } catch (error) {
-      console.error('Error updating visitor:', error);
-      setErrors(prev => ({ ...prev, general: 'Failed to update visitor status. Please try again.' }));
+      console.error('❌ Error updating visitor:', error);
+      
+      // Revert optimistic update on error
+      const revertVisitorInState = (visitorId) => {
+        // Re-fetch to get the correct state
+        fetchVisitors();
+      };
+      
+      revertVisitorInState(visitorId);
+      
+      // Enhanced error handling
+      let errorMessage = 'Failed to update visitor status. Please try again.';
+      
+      if (error.response) {
+        console.log('Error response:', error.response);
+        
+        // Check for specific error messages from backend
+        if (error.response.data?.message) {
+          errorMessage = error.response.data.message;
+        } else if (error.response.data?.error) {
+          errorMessage = error.response.data.error;
+        } else if (error.response.data?.errors) {
+          // Handle validation errors
+          const errors = error.response.data.errors;
+          if (typeof errors === 'object') {
+            errorMessage = Object.values(errors).flat().join(', ');
+          }
+        }
+        
+        // Check status codes
+        if (error.response.status === 404) {
+          errorMessage = 'Visitor not found. Please refresh and try again.';
+        } else if (error.response.status === 403) {
+          errorMessage = 'You do not have permission to perform this action.';
+        } else if (error.response.status === 422) {
+          errorMessage = 'Invalid data provided. Please check and try again.';
+        }
+      } else if (error.request) {
+        errorMessage = 'Network error. Please check your connection and try again.';
+      }
+      
+      setErrors(prev => ({ ...prev, general: errorMessage }));
+      
+      // Force refresh in case the action actually succeeded but response failed
+      setTimeout(() => {
+        console.log('🔄 Forcing refresh after error (action might have succeeded)...');
+        triggerRefresh();
+      }, 2000);
+    }
+  };
+
+  // FIXED handleReschedule function with same enhanced error handling
+  const handleReschedule = async (visitorId, newVisitingDate, newVisitingTime, additionalData = {}) => {
+    try {
+      console.log('🔄 Rescheduling visitor...', { visitorId, newVisitingDate, newVisitingTime, additionalData });
+      
+      // Clear any previous errors
+      setErrors(prev => ({ ...prev, general: '' }));
+      
+      // Optimistic update - immediately update the UI with new schedule
+      const updateVisitorScheduleInState = (visitorId, newVisitingDate, newVisitingTime, additionalData = {}) => {
+        setVisitors(prev => prev.map(visitor => 
+          visitor.id === visitorId 
+            ? { 
+                ...visitor, 
+                visiting_date: newVisitingDate,
+                visiting_time: newVisitingTime,
+                ...additionalData
+              }
+            : visitor
+        ));
+        
+        setRecurringVisitors(prev => prev.map(visitor => 
+          visitor.id === visitorId 
+            ? { 
+                ...visitor, 
+                visiting_date: newVisitingDate,
+                visiting_time: newVisitingTime,
+                ...additionalData
+              }
+            : visitor
+        ));
+      };
+
+      // Apply optimistic update for immediate UI feedback
+      updateVisitorScheduleInState(visitorId, newVisitingDate, newVisitingTime, additionalData);
+      
+      // Prepare the payload for reschedule
+      const reschedulePayload = {
+        visiting_date: newVisitingDate,
+        visiting_time: newVisitingTime,
+        action_type: 'reschedule',
+        ...additionalData
+      };
+      
+      console.log('📤 Sending reschedule payload:', reschedulePayload);
+      
+      // Make the API call - use reschedule endpoint if available, otherwise use updateStatus
+      let response;
+      if (api.visitors.reschedule) {
+        response = await api.visitors.reschedule(visitorId, reschedulePayload);
+      } else {
+        // Fallback to updateStatus if no specific reschedule endpoint
+        response = await api.visitors.updateStatus(visitorId, reschedulePayload);
+      }
+      
+      console.log('✅ Reschedule response:', response);
+      
+      // Show success message
+      setSuccessMessage(`Visitor rescheduled successfully to ${newVisitingDate} at ${newVisitingTime}`);
+      
+      // Wait a bit for backend to process (if needed)
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Enhanced refresh with better error handling
+      console.log('✅ Visitor rescheduled, refreshing data...');
+      
+      try {
+        // Try auto refresh first
+        await autoRefresh();
+        console.log('✅ Auto refresh after reschedule completed');
+        
+      } catch (refreshError) {
+        console.error('❌ Auto refresh failed, trying manual trigger:', refreshError);
+        
+        // Fallback to trigger refresh
+        triggerRefresh();
+        
+        // If that fails too, try direct fetch
+        setTimeout(async () => {
+          try {
+            await fetchVisitors();
+            if (showRecurring) {
+              await fetchVisitorCounts();
+            }
+          } catch (directFetchError) {
+            console.error('❌ Direct fetch also failed:', directFetchError);
+          }
+        }, 1000);
+      }
+      
+      // Clear success message after delay
+      setTimeout(() => {
+        setSuccessMessage('');
+      }, 3000);
+      
+    } catch (error) {
+      console.error('❌ Error rescheduling visitor:', error);
+      
+      // Revert optimistic update on error
+      const revertVisitorInState = (visitorId) => {
+        // Re-fetch to get the correct state
+        fetchVisitors();
+      };
+      
+      revertVisitorInState(visitorId);
+      
+      // Enhanced error handling
+      let errorMessage = 'Failed to reschedule visitor. Please try again.';
+      
+      if (error.response) {
+        console.log('Error response:', error.response);
+        
+        // Check for specific error messages from backend
+        if (error.response.data?.message) {
+          errorMessage = error.response.data.message;
+        } else if (error.response.data?.error) {
+          errorMessage = error.response.data.error;
+        } else if (error.response.data?.errors) {
+          // Handle validation errors
+          const errors = error.response.data.errors;
+          if (typeof errors === 'object') {
+            errorMessage = Object.values(errors).flat().join(', ');
+          }
+        }
+        
+        // Check status codes
+        if (error.response.status === 404) {
+          errorMessage = 'Visitor not found. Please refresh and try again.';
+        } else if (error.response.status === 403) {
+          errorMessage = 'You do not have permission to reschedule this visitor.';
+        } else if (error.response.status === 422) {
+          errorMessage = 'Invalid date or time provided. Please check and try again.';
+        } else if (error.response.status === 400) {
+          errorMessage = 'Invalid reschedule data. Please check the date and time format.';
+        }
+      } else if (error.request) {
+        errorMessage = 'Network error. Please check your connection and try again.';
+      }
+      
+      setErrors(prev => ({ ...prev, general: errorMessage }));
+      
+      // Force refresh in case the action actually succeeded but response failed
+      setTimeout(() => {
+        console.log('🔄 Forcing refresh after reschedule error (action might have succeeded)...');
+        triggerRefresh();
+      }, 2000);
     }
   };
 
@@ -731,8 +1028,14 @@ const GateCheck = ({ onVisitorCountChange, userCompany, user, onVendorsCountChan
         link.click();
         document.body.removeChild(link);
         
-        // Auto refresh after export
-        await autoRefresh();
+        // Enhanced refresh after export
+        console.log('✅ Export completed, refreshing data...');
+        try {
+          await autoRefresh();
+        } catch (refreshError) {
+          console.error('❌ Auto refresh after export failed:', refreshError);
+          triggerRefresh();
+        }
       }
     } catch (error) {
       console.error('Error exporting data:', error);
@@ -748,11 +1051,29 @@ const GateCheck = ({ onVisitorCountChange, userCompany, user, onVendorsCountChan
         
         const formData = new FormData();
         formData.append('file', file);
+        
+        console.log('📁 Uploading file...');
         const response = await api.visitors.uploadExcel(formData);
+        
         if (response && response.data) {
           setSuccessMessage('Visitors uploaded successfully!');
-          // Auto refresh after file upload
-          await autoRefresh();
+          
+          console.log('✅ File uploaded successfully, refreshing data...');
+          
+          // Enhanced refresh after file upload with multiple fallbacks
+          try {
+            await autoRefresh();
+            console.log('✅ Auto refresh after upload completed');
+            
+            // Additional trigger refresh as backup
+            setTimeout(() => {
+              triggerRefresh();
+            }, 1000); // Longer delay for file processing
+            
+          } catch (refreshError) {
+            console.error('❌ Auto refresh after upload failed:', refreshError);
+            triggerRefresh();
+          }
         }
       } catch (error) {
         console.error('Error uploading file:', error);
@@ -765,6 +1086,17 @@ const GateCheck = ({ onVisitorCountChange, userCompany, user, onVendorsCountChan
   const handleSearchChange = (newSearchTerm) => {
     setSearchTerm(newSearchTerm);
     // fetchVisitors will be called by useEffect with debounce
+  };
+
+  // Add a manual refresh button handler for debugging/testing
+  const handleManualRefresh = async () => {
+    console.log('🔄 Manual refresh button clicked');
+    try {
+      await autoRefresh();
+    } catch (error) {
+      console.error('❌ Manual refresh failed:', error);
+      triggerRefresh();
+    }
   };
 
   if (loading) {
@@ -782,9 +1114,18 @@ const GateCheck = ({ onVisitorCountChange, userCompany, user, onVendorsCountChan
     <div className="min-h-screen m-0 bg-gray-50">
       {errors.general && (
         <div className="mx-6 mt-4 rounded-lg">
-          <div className="flex items-center">
-            <AlertCircle className="w-5 h-5 mr-2 text-red-500" />
-            <span className="text-red-700">{errors.general}</span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <AlertCircle className="w-5 h-5 mr-2 text-red-500" />
+              <span className="text-red-700">{errors.general}</span>
+            </div>
+            {/* Add manual refresh button for debugging */}
+            <button
+              onClick={handleManualRefresh}
+              className="px-3 py-1 text-xs text-red-600 border border-red-300 rounded hover:bg-red-50"
+            >
+              Retry
+            </button>
           </div>
         </div>
       )}
@@ -834,6 +1175,7 @@ const GateCheck = ({ onVisitorCountChange, userCompany, user, onVendorsCountChan
         filteredVisitors={filteredVisitors}
         showRecurring={showRecurring}
         onVisitorUpdate={handleVisitorUpdate}
+        onVisitorReschedule={handleReschedule}
         getStatusColor={getStatusColor}
         getStatusDot={getStatusDot}
         getPassTypeLabel={getPassTypeLabel}

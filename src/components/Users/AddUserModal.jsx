@@ -216,9 +216,9 @@ const AddUserModal = ({ onClose, onUserAdded, organization }) => {
         email: formData.email.trim().toLowerCase(),
         mobile_number: formData.phone.trim(),
         company: formData.companyId,
-        alias_name: formData.aliasname.trim() || null,
-        block: formData.blockBuilding.trim() || null,
-        floor: formData.floor.trim() || null,
+        alias_name: formData.aliasname.trim() || '',
+        block: formData.blockBuilding.trim() || '',
+        floor: formData.floor.trim() || '',
         role: formData.role_id // Include role in user data
       };
       console.log('Submitting user data:', userData);

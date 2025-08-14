@@ -28,21 +28,21 @@ const VisitorTable = ({
   const navigate = useNavigate();
 
   // Fixed useEffect for click outside detection
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setOpenDropdown(null);
-      }
-    };
+  // useEffect(() => {
+  //   const handleClickOutside = (event) => {
+  //     if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+  //       setOpenDropdown(null);
+  //     }
+  //   };
 
-    if (openDropdown !== null) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
+  //   if (openDropdown !== null) {
+  //     document.addEventListener('mousedown', handleClickOutside);
+  //   }
 
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [openDropdown]);
+  //   return () => {
+  //     document.removeEventListener('mousedown', handleClickOutside);
+  //   };
+  // }, [openDropdown]);
 
   // Memoized function to check if visiting time is in the past
   const isVisitingTimeInPast = useCallback((visitingDate, visitingTime) => {

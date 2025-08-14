@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FaBuilding, FaUsers, FaCalendar, FaArrowLeft, FaPlus, FaExclamationTriangle } from 'react-icons/fa';
+import { FaBuilding, FaUsers, FaCalendar, FaArrowLeft, FaPlus, FaExclamationTriangle, FaSearch } from 'react-icons/fa';
 import { Loader2 } from 'lucide-react';
 import { api } from '../Auth/api';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -7,8 +7,11 @@ import AddUserModal from './AddUserModal';
 import UserList from './UserList';
 import UserModals from './UserModals';
 
+
 const UserManagement = ({ onBack, onUpdateOrganization, onNavigateToOrganizations, onUserCountChange }) => {
   const [users, setUsers] = useState([]);
+  const [filteredUsers, setFilteredUsers]= useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [deleteLoading, setDeleteLoading] = useState({});
@@ -31,6 +34,7 @@ const UserManagement = ({ onBack, onUpdateOrganization, onNavigateToOrganization
     } else {
       console.log('No organization ID, using fallback users');
       setUsers(organization?.users || []);
+      setFilteredUsers(organization?.users || []);
     }
   }, [organization?.id]);
 
@@ -39,6 +43,28 @@ const UserManagement = ({ onBack, onUpdateOrganization, onNavigateToOrganization
       onUserCountChange(users.length);
     }
   }, [users.length, onUserCountChange]);
+
+  useEffect(() => {
+    if (!searchTerm.trim()) {
+      setFilteredUsers(users);
+    } else {
+      const filtered = users.filter(user => {
+        const userName = (user.username || user.name || '').toLowerCase();
+        const userEmail = (user.email || '').toLowerCase(); 
+        const searchLower = searchTerm.toLowerCase();
+
+        return userName.includes(searchLower) || userEmail.includes(searchLower);
+      });
+      setFilteredUsers(filtered);
+    }
+  }, [searchTerm, users]);
+
+  const handleSearchChange = (e) => {
+    setSearchTerm(e.target.value);
+  };
+  const clearSearch = () => {
+    setSearchTerm('');
+  };
 
   const loadUsers = async () => {
     if (!organization?.id) {
@@ -55,12 +81,14 @@ const UserManagement = ({ onBack, onUpdateOrganization, onNavigateToOrganization
         const fetchedUsers = Array.isArray(response.data) ? response.data : response.data.users || [];
         console.log('Users loaded successfully:', fetchedUsers.length);
         setUsers(fetchedUsers);
+        setFilteredUsers(fetchedUsers);
         if (onUserCountChange) {
           onUserCountChange(fetchedUsers.length);
         }
       } else {
         console.log('No data in response, setting empty users array');
         setUsers([]);
+        setFilteredUsers([]);
         if (onUserCountChange) {
           onUserCountChange(0);
         }
@@ -84,6 +112,7 @@ const UserManagement = ({ onBack, onUpdateOrganization, onNavigateToOrganization
       if (organization?.users) {
         console.log('Using fallback users from organization object');
         setUsers(organization.users);
+        setFilteredUsers(organization.users);
         if (onUserCountChange) {
           onUserCountChange(organization.users.length);
         }
@@ -424,13 +453,15 @@ const UserManagement = ({ onBack, onUpdateOrganization, onNavigateToOrganization
             </div>
             <div className="overflow-hidden bg-white shadow-sm rounded-xl">
               <div className="p-6 border-b border-gray-200">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between mb-4">
                   <div>
                     <h3 className="text-lg font-semibold text-gray-800">Users</h3>
                     <p className="text-sm text-gray-600">
-                      Manage and view all users in this organization ({userCountSummary.total} total)
+                      Manage and view all users in this organization ({filteredUsers.length} {searchTerm ? 'filtered' : 'total'})
                     </p>
                   </div>
+                 
+                
                   {loading && (
                     <div className="flex items-center space-x-2 text-purple-600">
                       <Loader2 className="w-4 h-4 animate-spin" />
@@ -439,6 +470,32 @@ const UserManagement = ({ onBack, onUpdateOrganization, onNavigateToOrganization
                   )}
                 </div>
               </div>
+
+              <div className="realtive">
+                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                  <FaSearch className="w-4 h-4 text-gray-400" />
+                </div>
+                <input
+                  type="text"
+                  placeholder="Search by name or email..."
+                  value={searchTerm}
+                  onChange={handleSearchChange}
+                  className="  p-2 m-5 text-sm border border-gray-300 rounded-lg  focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  />
+                {searchTerm && (
+                  <button
+                    onClick={clearSearch}
+                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600"
+                   
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/>
+                      </svg>
+                    </button>
+                )}
+                
+              </div>
+           
               {loading && users.length === 0 ? (
                 <div className="py-20 text-center">
                   <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-purple-100 rounded-full">
@@ -447,19 +504,29 @@ const UserManagement = ({ onBack, onUpdateOrganization, onNavigateToOrganization
                   <h3 className="mb-2 text-lg font-semibold text-gray-800">Loading Users</h3>
                   <p className="text-gray-600">Please wait while we fetch the user data...</p>
                 </div>
-              ) : users.length === 0 ? (
+              ) : filteredUsers.length === 0 ? (
                 <div className="py-20 text-center">
                   <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-purple-100 rounded-full">
                     <FaUsers className="w-8 h-8 text-purple-300" />
                   </div>
-                  <h3 className="mb-2 text-lg font-semibold text-gray-800">No Users Yet</h3>
+                  <h3 className="mb-2 text-lg font-semibold text-gray-800">{searchTerm ? 'No Users Found': 'No Users Yet'}</h3>
                   <p className="mb-6 text-gray-600">
-                    Users will appear here once they are added to this organization.
+                    {searchTerm ? `No users match your search "${searchTerm}". Try a different search term.`
+                      : 'Users will appear here once they are added to this organization.'
+                      }
                   </p>
+                     {searchTerm && (
+                    <button
+                      onClick={clearSearch}
+                      className="px-4 py-2 text-sm text-purple-600 border border-purple-600 rounded-lg hover:bg-purple-50"
+                    >
+                      Clear Search
+                    </button>
+                  )}
                 </div>
               ) : (
                 <UserList
-                  users={users}
+                  users={filteredUsers}
                   onViewUser={handleViewUserDetails}
                   onEditUser={handleEditUser}
                   onDeleteUser={handleDeleteUserConfirm}
@@ -508,3 +575,5 @@ const UserManagement = ({ onBack, onUpdateOrganization, onNavigateToOrganization
 };
 
 export default UserManagement;
+
+
