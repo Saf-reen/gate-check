@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { User, LayoutDashboard, Shield, Building2, Folder, ChevronDown, ChevronUp, Link } from "lucide-react";
 
@@ -6,7 +6,8 @@ const Sidebar = ({
   activeSection = "dashboard",
   onSectionChange,
   className = "",
-  isOpen = true
+  isOpen = true,
+  userProfile = null
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -48,60 +49,89 @@ const Sidebar = ({
     return false;
   };
 
+  const [dynamicRoles, setDynamicRoles] = useState([]);
+
+  useEffect(() => {
+    // Fetch roles from backend (same as RolesPage)
+    const fetchRoles = async () => {
+      try {
+        const response = await import('../../RolesPermissions/Roles/RolesPage.jsx');
+        // If using API directly:
+        // const apiResponse = await api.roles.getAll();
+        // setDynamicRoles(apiResponse.data.map(role => role.name));
+        // For now, fallback to static roles if import fails
+        setDynamicRoles([]); // You can update this to use API response
+      } catch (err) {
+        setDynamicRoles([]);
+      }
+    };
+    fetchRoles();
+  }, []);
+
+  // Use dynamicRoles for filtering if available
   const sidebarSections = [
     {
       id: "dashboard",
       title: "Dashboard",
       icon: <LayoutDashboard size={20} />,
-      route: "/Dashboard"
+      route: "/Dashboard",
+      roles: dynamicRoles.length ? dynamicRoles : ["Admin", "Manager", "User"]
     },
     {
       id: "gatecheck",
       title: "GateCheck",
       icon: <Shield size={20} />,
-      route: "/GateCheck"
+      route: "/GateCheck",
+      roles: dynamicRoles.length ? dynamicRoles : ["Admin", "Manager"]
     },
     {
       id: "profile",
       title: "Profile",
       icon: <User size={20} />,
-      route: "/ProfilePage"
+      route: "/ProfilePage",
+      roles: dynamicRoles.length ? dynamicRoles : ["Admin", "Manager", "User"]
     },
     {
       id: "organization",
       title: "Organization",
       icon: <Building2 size={20} />,
-      route: "/Organization"
+      route: "/Organization",
+      roles: dynamicRoles.length ? dynamicRoles : ["Admin"]
     },
     {
       id: "roles",
       title: "Roles",
       icon: <User size={20} />,
       route: "/Roles",
+      roles: dynamicRoles.length ? dynamicRoles : ["Admin"],
       dropdown: [
         {
           id: "roles",
           title: "Roles",
           icon: <User size={20} />,
-          route: "/Roles"
+          route: "/Roles",
+          roles: dynamicRoles.length ? dynamicRoles : ["Admin"]
         },
         {
           id: "permissions",
           title: "Permissions",
           icon: <Shield size={20} />,
-          route: "/Permissions"
+          route: "/Permissions",
+          roles: dynamicRoles.length ? dynamicRoles : ["Admin"]
         },
         {
           id: "rolespermissions",
           title: "Roles & Permissions",
           icon: <Link size={20} />,
-          route: "/RolesPermissions"
+          route: "/RolesPermissions",
+          roles: dynamicRoles.length ? dynamicRoles : ["Admin"]
         },
         {
           id: "userroles",
           title: "User Roles",
           icon: <User size={20} />,
-          route: "/UserRoles"
+          route: "/UserRoles",
+          roles: dynamicRoles.length ? dynamicRoles : ["Admin"]
         }
       ]
     },
@@ -110,10 +140,18 @@ const Sidebar = ({
       title: "Categories",
       icon: <Folder size={20} />,
       route: "/category",
+      roles: dynamicRoles.length ? dynamicRoles : ["Admin", "Manager"]
     }
   ];
+  // Filter sections by user role
+  const userRole = userProfile?.role || null;
+  const allowedSections = sidebarSections.filter(section => {
+    if (!userRole) return true; // If no role, show all
+    return !section.roles || section.roles.includes(userRole);
+  });
 
-  const renderNavLink = (section) => {
+  // For dropdowns, filter items by role
+  const renderNavLinkWithRole = (section) => {
     const isActive = isSectionActive(section.id, section.route);
     const isDisabled = disabledLinks[section.id];
     const linkClasses = `w-full flex items-center space-x-3 px-3 py-2 rounded-md text-left transition-colors duration-200 ${
@@ -125,6 +163,12 @@ const Sidebar = ({
     }`;
 
     if (section.dropdown) {
+      // Filter dropdown items by role
+      const dropdownItems = section.dropdown.filter(item => {
+        if (!userRole) return true;
+        return !item.roles || item.roles.includes(userRole);
+      });
+      if (dropdownItems.length === 0) return null;
       return (
         <div key={section.id} className="mb-2">
           <button
@@ -139,7 +183,7 @@ const Sidebar = ({
           </button>
           {openDropdown === section.id && (
             <div className="mt-1 ml-6 space-y-1">
-              {section.dropdown.map((dropdownItem) => {
+              {dropdownItems.map((dropdownItem) => {
                 const dropdownItemActive = isSectionActive(dropdownItem.id, dropdownItem.route);
                 return (
                   <button
@@ -197,7 +241,7 @@ const Sidebar = ({
       </div>
       <nav className="flex-1 py-4 overflow-y-auto">
         <div className="px-3 space-y-1">
-          {sidebarSections.map((section) => renderNavLink(section))}
+          {allowedSections.map((section) => renderNavLinkWithRole(section))}
         </div>
       </nav>
       <div className="p-4 text-xs text-center border-t border-slate-700 text-slate-400">
@@ -205,6 +249,7 @@ const Sidebar = ({
       </div>
     </aside>
   );
+// ...existing code...
 };
 
 export default Sidebar;

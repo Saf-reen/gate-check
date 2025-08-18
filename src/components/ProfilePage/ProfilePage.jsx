@@ -41,6 +41,7 @@ const ProfilePage = ({ user: propUser, onLogout, onProfileUpdate }) => {
     email: '',
     mobile: '',
     aliasName: '',
+    role: '',
     blockBuilding: '',
     floor: '',
     address: '',
@@ -448,18 +449,18 @@ const ProfilePage = ({ user: propUser, onLogout, onProfileUpdate }) => {
         }));
         setIsEditingPassword(false);
         break;
-      case 'alias':
-        setFormData(prev => ({ ...prev, aliasName: profileData.aliasName }));
-        setIsEditingAlias(false);
-        break;
-      case 'email':
-        setFormData(prev => ({ ...prev, email: profileData.email }));
-        setIsEditingEmail(false);
-        break;
-      case 'mobile':
-        setFormData(prev => ({ ...prev, mobile: profileData.mobile }));
-        setIsEditingMobile(false);
-        break;
+      // case 'alias':
+      //   setFormData(prev => ({ ...prev, aliasName: profileData.aliasName }));
+      //   setIsEditingAlias(false);
+      //   break;
+      // case 'email':
+      //   setFormData(prev => ({ ...prev, email: profileData.email }));
+      //   setIsEditingEmail(false);
+      //   break;
+      // case 'mobile':
+      //   setFormData(prev => ({ ...prev, mobile: profileData.mobile }));
+      //   setIsEditingMobile(false);
+      //   break;
     }
   };
 

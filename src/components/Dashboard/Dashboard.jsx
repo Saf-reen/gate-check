@@ -107,7 +107,7 @@ const Dashboard = ({ user, onLogout, totalVisitors = 0, totalVendors = 0 }) => {
             {/* Stats Cards */}
             <div className="grid grid-cols-1 gap-6 mt-6 md:grid-cols-3 lg:grid-cols-8">
               <div
-                onClick={handleVisitorsNavigation}
+                // onClick={handleVisitorsNavigation}
                 className="p-2 transition-all duration-300 bg-transparent cursor-pointer hover:shadow-xl hover:-translate-y-1 hover:border-purple-200"
               >
                 <div className="flex flex-col items-center">

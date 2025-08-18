@@ -72,9 +72,22 @@ const RolePermissionsPage = () => {
       return;
     }
 
+    // Ensure permission is an array of IDs
+    const permissionIds = newRolePermission.permission.map(perm => {
+      if (typeof perm === 'number') return perm;
+      // If it's a string, try to find the permission object
+      const found = permissions.find(p => p.name === perm || p.permission_id === perm);
+      return found ? found.permission_id : perm;
+    });
+
+    const payload = {
+      ...newRolePermission,
+      permission: permissionIds
+    };
+
     try {
       setSubmitting(true);
-      const response = await api.rolePermissions.create(newRolePermission);
+      const response = await api.rolePermissions.create(payload);
       setRolePermissions([...rolePermissions, response.data]);
       setNewRolePermission({ role: "", permission: [] });
       setShowAddModal(false);
@@ -88,7 +101,21 @@ const RolePermissionsPage = () => {
   };
 
   const handleEditRolePermission = async () => {
-    if (!selectedRolePermission || !selectedRolePermission.role) {
+    // Debug logging to identify the issue
+    console.log('Selected Role Permission for Edit:', selectedRolePermission);
+    if (!selectedRolePermission) {
+      setError("No role permission selected for editing.");
+      return;
+    }
+
+    // Check for role_permission_id (primary identifier)
+    const rolePermissionId = selectedRolePermission.role_permission_id || selectedRolePermission.id;
+    if (!rolePermissionId) {
+      console.error('Missing role permission ID:', selectedRolePermission);
+      setError("Role permission ID is missing. Cannot update.");
+      return;
+    }
+    if (!selectedRolePermission.role) {
       alert('Please select a role');
       return;
     }
@@ -97,26 +124,68 @@ const RolePermissionsPage = () => {
       return;
     }
 
+    // Ensure permission is an array of IDs
+    const permissionIds = selectedRolePermission.permission.map(perm => {
+      if (typeof perm === 'number') return perm;
+      // If it's a string, try to find the permission object
+      const found = permissions.find(p => p.name === perm || p.permission_id === perm);
+      return found ? found.permission_id : perm;
+    });
+
+    // Prepare clean payload - only send required fields
+    const updatePayload = {
+      role: selectedRolePermission.role,
+      permission: permissionIds
+    };
+
     try {
       setSubmitting(true);
-      const response = await api.rolePermissions.update(selectedRolePermission.id, selectedRolePermission);
-      setRolePermissions(rolePermissions.map(rp =>
-        rp.id === selectedRolePermission.id ? response.data : rp
-      ));
+      console.log(`Updating role permission with ID: ${rolePermissionId}`);
+      console.log('Clean update payload:', updatePayload);
+      console.log('API URL will be:', `/role-permissions/${rolePermissionId}`);
+      const response = await api.rolePermissions.update(rolePermissionId, updatePayload);
+      console.log('Update response:', response);
+      setRolePermissions(rolePermissions.map(rp => {
+        // Check both possible ID fields for matching
+        const currentId = rp.role_permission_id || rp.id;
+        return currentId === rolePermissionId ? response.data : rp;
+      }));
       setShowEditModal(false);
       setSelectedRolePermission(null);
       setError(null);
     } catch (err) {
       console.error('Error updating role permission:', err);
-      setError(err.response?.data?.message || 'Failed to update role permission');
+      console.error('Error response details:', {
+        status: err.response?.status,
+        statusText: err.response?.statusText,
+        data: err.response?.data,
+        headers: err.response?.headers
+      });
+      console.log(err);
+      // Handle specific error cases
+      if (err.response?.status === 400) {
+        const errorMessage = err.response?.data?.message || err.response?.data?.error || 'Bad Request';
+        setError(`Bad Request: ${errorMessage}. Please check the data format.`);
+        console.error('Bad Request Details:', err.response?.data);
+      } else if (err.response?.status === 404) {
+        setError('Role permission not found. It may have been deleted.');
+      } else if (err.response?.status === 403) {
+        setError('Permission denied. You do not have permission to update role permissions.');
+      } else {
+        setError(err.response?.data?.message || err.response?.data?.error || 'Failed to update role permission');
+      }
+      // Refresh data to ensure consistency
+      fetchRolePermissions();
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleDeleteRolePermission = async (rolePermissionId) => {
-    // Validate the ID
-    if (!rolePermissionId || rolePermissionId === undefined || rolePermissionId === null) {
+    // Validate the ID - check both possible field names
+    const actualId = rolePermissionId?.role_permission_id || rolePermissionId?.id || rolePermissionId;
+    
+    if (!actualId || actualId === undefined || actualId === null) {
       console.error("Invalid role_permission_id for delete:", rolePermissionId);
       setError("Invalid role permission ID. Unable to delete.");
       return;
@@ -127,18 +196,21 @@ const RolePermissionsPage = () => {
     }
 
     try {
-      console.log(`Attempting to delete role permission with ID: ${rolePermissionId}`);
+      console.log(`Attempting to delete role permission with ID: ${actualId}`);
 
       // Make sure we're passing the ID correctly to the API
-      await api.rolePermissions.delete(rolePermissionId);
+      await api.rolePermissions.delete(actualId);
 
       // Update the state to remove the deleted item
       setRolePermissions(prevRolePermissions =>
-        prevRolePermissions.filter(rp => rp.id !== rolePermissionId)
+        prevRolePermissions.filter(rp => {
+          const currentId = rp.role_permission_id || rp.id;
+          return currentId !== actualId;
+        })
       );
 
       setError(null);
-      console.log(`Successfully deleted role permission with ID: ${rolePermissionId}`);
+      console.log(`Successfully deleted role permission with ID: ${actualId}`);
 
     } catch (err) {
       console.error('Error deleting role permission:', err);
@@ -157,6 +229,36 @@ const RolePermissionsPage = () => {
     }
   };
 
+  // Enhanced edit handler to ensure proper data flow
+  const handleEditClick = (rolePermission) => {
+    console.log('Edit clicked for role permission:', rolePermission);
+    if (!rolePermission) {
+      setError("Invalid role permission data.");
+      return;
+    }
+
+    // Normalize role to always be a number
+    let normalizedRoleId = rolePermission.role;
+    if (typeof normalizedRoleId === 'string') {
+      // Try to find the role by name
+      const foundRole = roles.find(r => r.name === normalizedRoleId);
+      if (foundRole) {
+        normalizedRoleId = foundRole.role_id;
+      } else {
+        // Try to parse as number
+        const parsed = Number(normalizedRoleId);
+        normalizedRoleId = isNaN(parsed) ? '' : parsed;
+      }
+    }
+
+    // Set the selected role permission with normalized role ID
+    setSelectedRolePermission({
+      ...rolePermission,
+      role: normalizedRoleId,
+      role_permission_id: rolePermission.role_permission_id || rolePermission.id
+    });
+    setShowEditModal(true);
+  };
 
   const filteredRolePermissions = rolePermissions.filter(rp => {
     // Log the current role permission object to inspect its structure
@@ -269,7 +371,7 @@ const RolePermissionsPage = () => {
 
         <RolePermissionTable
           rolePermissions={filteredRolePermissions}
-          onEdit={setSelectedRolePermission}
+          onEdit={handleEditClick}
           onShowEditModal={setShowEditModal}
           onDelete={handleDeleteRolePermission}
         />
@@ -288,7 +390,10 @@ const RolePermissionsPage = () => {
 
         <RolePermissionModal
           isOpen={showEditModal}
-          onClose={() => setShowEditModal(false)}
+          onClose={() => {
+            setShowEditModal(false);
+            setSelectedRolePermission(null);
+          }}
           title="Edit Role Permissions"
           rolePermission={selectedRolePermission}
           onChange={setSelectedRolePermission}

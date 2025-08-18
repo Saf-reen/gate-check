@@ -29,6 +29,15 @@ const ProfileInformation = ({
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             <div>
               <label className="flex items-center mb-2 text-sm font-medium text-gray-700">
+                <User className="w-4 h-4 mr-2" />
+                Role
+              </label>
+              <p className="p-3 text-gray-800 bg-gray-100 rounded-md">
+                {getFieldValue(profileData.role, 'role')}
+              </p>
+            </div>
+            <div>
+              <label className="flex items-center mb-2 text-sm font-medium text-gray-700">
                 <Building className="w-4 h-4 mr-2" />
                 Company Name
               </label>
@@ -59,7 +68,7 @@ const ProfileInformation = ({
                 <User className="w-4 h-4 mr-2" />
                 Alias Name
               </label>
-              {isEditingAlias ? (
+              {/* {isEditingAlias ? (
                 <div className="space-y-2">
                   <input
                     type="text"
@@ -90,7 +99,7 @@ const ProfileInformation = ({
                     </button>
                   </div>
                 </div>
-              ) : (
+              ) : ( */}
                 <div className="flex items-center justify-between p-3 bg-gray-100 rounded-md">
                   <span className="text-gray-800">
                     {getFieldValue(profileData.aliasName, 'alias name')}
@@ -100,17 +109,17 @@ const ProfileInformation = ({
                     disabled={loading}
                     className="p-1 text-purple-600 hover:text-purple-800 disabled:opacity-50"
                   >
-                    <Edit2 className="w-4 h-4" />
+                    {/* <Edit2 className="w-4 h-4" /> */}
                   </button>
                 </div>
-              )}
+              {/* )} */}
             </div>
             <div>
               <label className="flex items-center mb-2 text-sm font-medium text-gray-700">
                 <Mail className="w-4 h-4 mr-2" />
                 Email
               </label>
-              {isEditingEmail ? (
+              {/* {isEditingEmail ? (
                 <div className="space-y-2">
                   <input
                     type="email"
@@ -141,7 +150,7 @@ const ProfileInformation = ({
                     </button>
                   </div>
                 </div>
-              ) : (
+              ) : ( */}
                 <div className="flex items-center justify-between p-3 bg-gray-100 rounded-md">
                   <span className="text-gray-800">
                     {getFieldValue(profileData.email, 'email')}
@@ -151,17 +160,17 @@ const ProfileInformation = ({
                     disabled={loading}
                     className="p-1 text-purple-600 hover:text-purple-800 disabled:opacity-50"
                   >
-                    <Edit2 className="w-4 h-4" />
+                    {/* <Edit2 className="w-4 h-4" /> */}
                   </button>
                 </div>
-              )}
+              {/* )} */}
             </div>
             <div>
               <label className="flex items-center mb-2 text-sm font-medium text-gray-700">
                 <Phone className="w-4 h-4 mr-2" />
                 Mobile Number
               </label>
-              {isEditingMobile ? (
+              {/* {isEditingMobile ? (
                 <div className="space-y-2">
                   <input
                     type="tel"
@@ -192,7 +201,7 @@ const ProfileInformation = ({
                     </button>
                   </div>
                 </div>
-              ) : (
+              ) : ( */}
                 <div className="flex items-center justify-between p-3 bg-gray-100 rounded-md">
                   <span className="text-gray-800">
                     {getFieldValue(profileData.mobile, 'mobile number')}
@@ -202,10 +211,10 @@ const ProfileInformation = ({
                     disabled={loading}
                     className="p-1 text-purple-600 hover:text-purple-800 disabled:opacity-50"
                   >
-                    <Edit2 className="w-4 h-4" />
+                    {/* <Edit2 className="w-4 h-4" /> */}
                   </button>
                 </div>
-              )}
+              {/* )} */}
             </div>
             <div>
               <label className="flex items-center mb-2 text-sm font-medium text-gray-700">

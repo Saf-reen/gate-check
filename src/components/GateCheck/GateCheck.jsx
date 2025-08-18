@@ -8,7 +8,7 @@ import {
   Loader2, AlertCircle, CheckCircle
 } from 'lucide-react';
 
-const GateCheck = ({ onVisitorCountChange, userCompany, user, onVendorsCountChange }) => {
+const GateCheck = ({ onVisitorCountChange, userCompany, user, onVendorsCountChange, onCategoryCountsChange, }) => {
   const [visitors, setVisitors] = useState([]);
   const [vendors, setVendors] = useState([]);
   const [recurringVisitors, setRecurringVisitors] = useState([]);
@@ -107,14 +107,18 @@ const GateCheck = ({ onVisitorCountChange, userCompany, user, onVendorsCountChan
       const response = await api.visitors.category();
       if (response && response.data) {
         const categoriesData = response.data.categories || response.data;
-        console.log('Categories:', categoriesData);
         if (Array.isArray(categoriesData)) {
           setCategories(categoriesData);
-        } else {
-          setCategories([]);
+          // Calculate counts for each category
+          const counts = categoriesData.map(category => ({
+            name: category.name,
+            count: category.visitor_count || 0,
+          }));
+          // Call the callback to update category counts in App.jsx
+          if (onCategoryCountsChange) {
+            onCategoryCountsChange(counts);
+          }
         }
-      } else {
-        setCategories([]);
       }
     } catch (error) {
       console.error('Error fetching categories:', error);
@@ -123,7 +127,7 @@ const GateCheck = ({ onVisitorCountChange, userCompany, user, onVendorsCountChan
     } finally {
       setCategoriesLoading(false);
     }
-  }, []);
+  }, [onCategoryCountsChange]);
 
   // Function to calculate counts from visitors array with filters applied
   const calculateVisitorCounts = useCallback((visitorsData) => {

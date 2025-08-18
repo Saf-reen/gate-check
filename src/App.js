@@ -54,10 +54,13 @@ function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [showAddUserModal, setShowAddUserModal] = useState(false);
   const [companyId, setCompanyId] = useState(null);
+  const [categoryCounts, setCategoryCounts] = useState([]);
 
   // Separate state for counts to ensure they're always up to date
   const [visitorCount, setVisitorCount] = useState(0);
   const [vendorCount, setVendorCount] = useState(0);
+  // Category count state
+  const [categoryCount, setCategoryCount] = useState(0);
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
@@ -75,6 +78,11 @@ function App() {
   const handleCloseModal = () => {
     setShowAddUserModal(false);
     setCompanyId(null);
+  };
+
+  const handleCategoryCountsChange = (counts) => {
+    console.log("Updating category counts in App:", counts); // Debug log
+    setCategoryCounts(counts);
   };
 
   const handleUserAdded = async (newUser) => {
@@ -305,25 +313,27 @@ function App() {
                             />
                           } 
                         />
-                        <Route 
-                          path="/gatecheck" 
+                        <Route
+                          path="/gatecheck"
                           element={
-                            <GateCheck 
+                            <GateCheck
                               onVisitorCountChange={handleVisitorCountChange}
                               onVendorsCountChange={handleVendorCountChange}
+                              onCategoryCountsChange={handleCategoryCountsChange} // Pass the callback
                               userCompany={userProfile?.company}
                               user={userProfile}
                             />
-                          } 
+                          }
                         />
-                        <Route 
-                          path="/visitors" 
+                        <Route
+                          path="/visitors"
                           element={
-                            <VisitorsPage 
-                              totalVisitors={visitorCount} 
-                              visitors={visitors} 
+                            <VisitorsPage
+                              totalVisitors={visitorCount}
+                              visitors={visitors}
+                              categoryCounts={categoryCounts} // Make sure this is passed
                             />
-                          } 
+                          }
                         />
                         <Route 
                           path="/vendors" 
@@ -344,7 +354,7 @@ function App() {
                         <Route path="/userroles" element={<UserRole userProfile={userProfile} />} />
                         <Route path="/manual-pass" element={<ManualPass />} />
                         <Route path="/qr-pass" element={<QRCode />} />
-                        <Route path="/category" element={<CategoryPage />} />
+                        <Route path="/category" element={<CategoryPage setCategoryCount={setCategoryCount} />} />
                         <Route path="/Dashboard" element={<Navigate to="/dashboard" replace />} />
                         <Route path="/GateCheck" element={<Navigate to="/gatecheck" replace />} />
                         <Route path="/Reports" element={<Navigate to="/reports" replace />} />

@@ -6,7 +6,8 @@ import CategoryModal from './CategoryModal';
 import AlertMessage from './AlertMessage';
 import StatsCards from './StatsCards';
 
-const CategoryPage = () => {
+const CategoryPage = (props) => {
+  // Accept setCategoryCount as a prop
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -32,6 +33,10 @@ const CategoryPage = () => {
       setError(null);
       const response = await api.categories.getAll();
       setCategories(response.data);
+      // Update category count in App.js if prop exists
+      if (typeof props.setCategoryCount === 'function') {
+        props.setCategoryCount(response.data.length);
+      }
       console.log(response.data);
     } catch (err) {
       console.error('Error fetching categories:', err);

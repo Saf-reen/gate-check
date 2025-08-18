@@ -153,29 +153,31 @@ const VisitorTable = ({
   const validateRescheduleForm = useCallback(() => {
     const errors = {};
     const now = new Date();
-    
+
     if (!rescheduleModal.newDate) {
       errors.newDate = 'Date is required';
-    } else {
+    }
+
+    if (!rescheduleModal.newTime) {
+      errors.newTime = 'Time is required';
+    }
+
+    if (rescheduleModal.newDate && rescheduleModal.newTime) {
+      // Only allow today or future date, but time must be in the future if today
       const selectedDate = new Date(rescheduleModal.newDate);
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      
-      if (selectedDate <= today) {
-        errors.newDate = 'Date must be in the future';
-      }
-    }
-    
-    if (!rescheduleModal.newTime) {
-      errors.newTime = 'Time is required';
-    } else if (rescheduleModal.newDate) {
-      // Check if the complete datetime is in the future
+      selectedDate.setHours(0, 0, 0, 0);
       const selectedDateTime = new Date(`${rescheduleModal.newDate}T${rescheduleModal.newTime}`);
-      if (selectedDateTime <= now) {
+      if (selectedDate < today) {
+        errors.newDate = 'Date cannot be in the past';
+      } else if (selectedDate.getTime() === today.getTime() && selectedDateTime <= now) {
+        errors.newTime = 'Time must be in the future for today';
+      } else if (selectedDateTime <= now) {
         errors.newTime = 'Date and time must be in the future';
       }
     }
-    
+
     return errors;
   }, [rescheduleModal.newDate, rescheduleModal.newTime]);
 
@@ -199,40 +201,34 @@ const VisitorTable = ({
       };
 
       // Make API call to reschedule
-      const response = await api.visitors.reschedule(visitorId, payload, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}` // Adjust based on your auth setup
-        },
-        body: JSON.stringify(payload)
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        
-        // Update the visitor in the local state
-        if (onVisitorUpdate) {
-          onVisitorUpdate(visitorId, 'PENDING', 'reschedule', {
-            visiting_date: data.new_date,
-            visiting_time: data.new_time.substring(0, 5) // Remove seconds for display (HH:MM format)
-          });
-        }
+      const response = await api.visitors.reschedule(visitorId, payload);
 
-        // Close modal and show success message
-        setRescheduleModal({
-          isOpen: false,
-          visitor: null,
-          newDate: '',
-          newTime: '',
-          errors: {}
-        });
-
-        alert('Visitor successfully rescheduled!');
+      // If response is axios/fetch, handle accordingly
+      let data;
+      if (response && response.data) {
+        data = response.data;
       } else {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to reschedule visitor');
+        data = response;
       }
+
+      // Update the visitor in the local state
+      if (onVisitorUpdate) {
+        onVisitorUpdate(visitorId, 'PENDING', 'reschedule', {
+          visiting_date: data.new_date || payload.new_date,
+          visiting_time: (data.new_time || payload.new_time).substring(0, 5) // Remove seconds for display (HH:MM format)
+        });
+      }
+
+      // Close modal and show success message
+      setRescheduleModal({
+        isOpen: false,
+        visitor: null,
+        newDate: '',
+        newTime: '',
+        errors: {}
+      });
+
+      alert('Visitor successfully rescheduled!');
     } catch (error) {
       console.error('Failed to reschedule visitor:', error);
       alert(`Failed to reschedule visitor: ${error.message}`);
@@ -251,50 +247,41 @@ const VisitorTable = ({
     });
   };
 
+  // Helper to check if visiting_date is today, in past, or in future
+  const isVisitingDateToday = (visitingDate) => {
+    if (!visitingDate) return false;
+    const today = new Date();
+    const visitDate = new Date(visitingDate);
+    return (
+      visitDate.getFullYear() === today.getFullYear() &&
+      visitDate.getMonth() === today.getMonth() &&
+      visitDate.getDate() === today.getDate()
+    );
+  };
+  const isVisitingDatePast = (visitingDate) => {
+    if (!visitingDate) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const visitDate = new Date(visitingDate);
+    visitDate.setHours(0, 0, 0, 0);
+    return visitDate < today;
+  };
+  const isVisitingDateFuture = (visitingDate) => {
+    if (!visitingDate) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const visitDate = new Date(visitingDate);
+    visitDate.setHours(0, 0, 0, 0);
+    return visitDate > today;
+  };
+
   // Memoized function to get action buttons
   const getActionButtons = useCallback((visitor) => {
     const buttons = [];
-    
-    // PENDING status: Show buttons based on visit timing
+
+    // PENDING status: Show Approve/Reject for today, Reschedule for past, Check In for future
     if (visitor.status === 'PENDING') {
-      // Calculate if visiting date/time is in the past
-      const now = new Date();
-      let visitDateTime;
-      
-      if (visitor.visiting_date && visitor.visiting_time) {
-        visitDateTime = new Date(`${visitor.visiting_date}T${visitor.visiting_time}`);
-      } else if (visitor.visiting_date) {
-        // If no time specified, assume end of day
-        visitDateTime = new Date(visitor.visiting_date);
-        visitDateTime.setHours(23, 59, 59);
-      } else {
-        // If no date, assume current time (shouldn't happen but fallback)
-        visitDateTime = now;
-      }
-      
-      const isInPast = visitDateTime < now;
-      
-      if (isInPast) {
-        // If visit is in the past, ONLY show Reschedule button
-        buttons.push(
-          <button
-            key="reschedule"
-            onClick={() => handleReschedule(visitor)}
-            disabled={loadingActions[`${visitor.id}-reschedule`]}
-            className="px-2 py-1 text-xs text-orange-600 border border-orange-600 rounded hover:text-orange-900 hover:bg-orange-50 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loadingActions[`${visitor.id}-reschedule`] ? (
-              <Loader2 className="w-3 h-3 animate-spin" />
-            ) : (
-              <>
-                <RefreshCw className="inline w-3 h-3 mr-1" />
-                Reschedule
-              </>
-            )}
-          </button>
-        );
-      } else {
-        // If visit is in the future, show Approve and Reject buttons
+      if (isVisitingDateToday(visitor.visiting_date)) {
         buttons.push(
           <button
             key="approve"
@@ -323,29 +310,25 @@ const VisitorTable = ({
             )}
           </button>
         );
-      }
-    }
-    
-    // APPROVED status: Show Check In button if not inside, Check Out button if inside
-    if (visitor.status === 'APPROVED') {
-      if (visitor.is_inside) {
-        // If approved and inside, show Check Out button
+      } else if (isVisitingDatePast(visitor.visiting_date)) {
         buttons.push(
           <button
-            key="checkout"
-            onClick={() => handleStatusUpdate(visitor.id, 'CHECKED_OUT', 'checkout')}
-            disabled={loadingActions[`${visitor.id}-checkout`]}
-            className="px-2 py-1 text-xs text-gray-600 border border-gray-600 rounded hover:text-gray-900 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            key="reschedule"
+            onClick={() => handleReschedule(visitor)}
+            disabled={loadingActions[`${visitor.id}-reschedule`]}
+            className="px-2 py-1 text-xs text-orange-600 border border-orange-600 rounded hover:text-orange-900 hover:bg-orange-50 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loadingActions[`${visitor.id}-checkout`] ? (
+            {loadingActions[`${visitor.id}-reschedule`] ? (
               <Loader2 className="w-3 h-3 animate-spin" />
             ) : (
-              'Check Out'
+              <>
+                <RefreshCw className="inline w-3 h-3 mr-1" />
+                Reschedule
+              </>
             )}
           </button>
         );
-      } else {
-        // If approved but not inside, show Check In button
+      } else if (isVisitingDateFuture(visitor.visiting_date)) {
         buttons.push(
           <button
             key="checkin"
@@ -362,7 +345,42 @@ const VisitorTable = ({
         );
       }
     }
-    
+
+    // APPROVED status: Show Check In button if not inside, Check Out button if inside
+    if (visitor.status === 'APPROVED') {
+      if (visitor.is_inside) {
+        buttons.push(
+          <button
+            key="checkout"
+            onClick={() => handleStatusUpdate(visitor.id, 'CHECKED_OUT', 'checkout')}
+            disabled={loadingActions[`${visitor.id}-checkout`]}
+            className="px-2 py-1 text-xs text-gray-600 border border-gray-600 rounded hover:text-gray-900 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loadingActions[`${visitor.id}-checkout`] ? (
+              <Loader2 className="w-3 h-3 animate-spin" />
+            ) : (
+              'Check Out'
+            )}
+          </button>
+        );
+      } else {
+        buttons.push(
+          <button
+            key="checkin"
+            onClick={() => handleStatusUpdate(visitor.id, 'CHECKED_IN', 'checkin')}
+            disabled={loadingActions[`${visitor.id}-checkin`]}
+            className="px-2 py-1 text-xs text-blue-600 border border-blue-600 rounded hover:text-blue-900 hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loadingActions[`${visitor.id}-checkin`] ? (
+              <Loader2 className="w-3 h-3 animate-spin" />
+            ) : (
+              'Check In'
+            )}
+          </button>
+        );
+      }
+    }
+
     // CHECKED_IN status: Show Check Out button
     if (visitor.status === 'CHECKED_IN') {
       buttons.push(
@@ -380,12 +398,12 @@ const VisitorTable = ({
         </button>
       );
     }
-    
+
     // REJECTED status: No buttons (stays rejected)
     // CHECKED_OUT status: No buttons (visitor has left)
-    
+
     return buttons;
-  }, [loadingActions, handleStatusUpdate, handleReschedule]);
+  }, [loadingActions, handleStatusUpdate]);
 
   const toggleDropdown = (visitorId) => {
     setOpenDropdown(openDropdown === visitorId ? null : visitorId);
@@ -588,7 +606,7 @@ const VisitorTable = ({
                       newDate: e.target.value,
                       errors: { ...prev.errors, newDate: '' }
                     }))}
-                    min={new Date(Date.now() + 86400000).toISOString().split('T')[0]} // Tomorrow
+                    min={new Date().toISOString().split('T')[0]} // Today
                     className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 ${
                       rescheduleModal.errors.newDate ? 'border-red-500' : 'border-gray-300'
                     }`}
