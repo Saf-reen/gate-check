@@ -46,7 +46,7 @@ const UserRoles = ({ userProfile }) => {
         api.userRoles.getAll(),
         api.roles.getAll()
       ]);
-
+      
       setUserRoles(userRolesResponse.data);
       setRoles(rolesResponse.data);
       console.log('Fetched user roles:', userRolesResponse.data);
@@ -92,12 +92,19 @@ const UserRoles = ({ userProfile }) => {
       alert('Please select a role');
       return;
     }
-
-    console.log(newUserRole)
+    const alreadyExists = userRoles.some(
+      ur => ur.user === newUserRole.user && ur.role === newUserRole.role
+    );
+    if (alreadyExists) {
+      setError('This user already has that role assigned.');
+      return;
+    }
+    // Only send user and role for creation
+    const payload = { user: newUserRole.user, role: newUserRole.role };
+    console.log('Create payload:', payload);
     try {
       setSubmitting(true);
-      console.log('Creating user role:', newUserRole);
-      const response = await api.userRoles.create(newUserRole);
+      const response = await api.userRoles.create(payload);
       setUserRoles([...userRoles, response.data]);
       setNewUserRole({ user: "", role: "" });
       setShowAddModal(false);
@@ -258,7 +265,13 @@ const UserRoles = ({ userProfile }) => {
         </div>
         <UserRoleTable
           userRoles={filteredUserRoles}
-          onEdit={setSelectedUserRole}
+          onEdit={userRole => {
+            // Always preserve user_role_id when editing
+            setSelectedUserRole({
+              ...userRole,
+              user_role_id: userRole.user_role_id || userRole.id
+            });
+          }}
           onShowEditModal={setShowEditModal}
           onDelete={handleDeleteUserRole}
         />

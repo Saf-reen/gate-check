@@ -1,10 +1,34 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Shield, FileText, User, Users, UserCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { api } from '../Auth/api';
 
-const Dashboard = ({ user, onLogout, totalVisitors = 0, totalVendors = 0 }) => {
+const Dashboard = ({ user, onLogout }) => {
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [totalVisitors, setTotalVisitors] = useState(0);
+  const [totalVendors, setTotalVendors] = useState(0);
   const navigate = useNavigate();
+
+  // Fetch visitor count on component mount
+  useEffect(() => {
+    const fetchVisitorCount = async () => {
+      try {
+        const companyId = user?.company_id;
+        if (!companyId) return;
+
+        const response = await api.visitors.getAll({ companyId });
+        if (response?.data) {
+          const visitorsData = response.data.visitors || response.data;
+          const visitorsArray = Array.isArray(visitorsData) ? visitorsData : [];
+          setTotalVisitors(visitorsArray.length);
+        }
+      } catch (error) {
+        console.error("Error fetching visitor count:", error);
+      }
+    };
+
+    fetchVisitorCount();
+  }, [user]);
 
   const handleTabChange = (tab) => {
     setActiveTab(tab);
@@ -21,10 +45,6 @@ const Dashboard = ({ user, onLogout, totalVisitors = 0, totalVendors = 0 }) => {
     navigate('/visitors');
   };
 
-  // const handleVendorsNavigation = () => {
-  //   navigate('/vendors');
-  // };
-
   const renderContent = () => {
     switch (activeTab) {
       case 'dashboard':
@@ -38,44 +58,7 @@ const Dashboard = ({ user, onLogout, totalVisitors = 0, totalVendors = 0 }) => {
               <div className="absolute top-0 right-0 transform translate-x-8 -translate-y-8 bg-white rounded-full w-28 h-28 opacity-10"></div>
               <div className="absolute bottom-0 left-0 w-20 h-20 transform -translate-x-4 translate-y-4 bg-white rounded-full opacity-10"></div>
             </div>
-            
-            {/* Navigation Cards */}
-            {/* <div className="grid grid-cols-1 gap-3 mt-4 md:grid-cols-8">
-              <div
-                onClick={() => handleCardNavigation('/gatecheck')}
-                className="p-3 transition-all duration-300 bg-white border border-gray-100 rounded-md shadow-lg cursor-pointer hover:shadow-xl hover:-translate-y-1"
-              >
-                <div className="text-center">
-                  <div className="flex items-center justify-center w-10 h-10 mx-auto mb-4 bg-white border border-purple-800 rounded-full shadow-lg">
-                    <UserCheck className="w-4 h-4 text-purple-800" />
-                  </div>
-                  <h3 className="mb-2 text-sm font-medium text-gray-800">GateCheck</h3>
-                </div>
-              </div>
-              <div
-                onClick={() => handleCardNavigation('/reports')}
-                className="p-3 transition-all duration-300 bg-white border border-gray-100 rounded-md shadow-lg cursor-pointer hover:shadow-xl hover:-translate-y-1"
-              >
-                <div className="text-center">
-                  <div className="flex items-center justify-center w-10 h-10 mx-auto mb-4 bg-white border border-purple-800 rounded-full shadow-lg">
-                    <FileText className="w-4 h-4 text-purple-800" />
-                  </div>
-                  <h3 className="mb-2 text-sm font-medium text-gray-800">Reports</h3>
-                </div>
-              </div>
-              <div
-                onClick={() => handleCardNavigation('/profile')}
-                className="p-3 transition-all duration-300 bg-white border border-gray-100 rounded-md shadow-lg cursor-pointer hover:shadow-xl hover:-translate-y-1"
-              >
-                <div className="text-center">
-                  <div className="flex items-center justify-center w-10 h-10 mx-auto mb-4 bg-white border border-purple-800 rounded-full shadow-lg">
-                    <User className="w-4 h-4 text-purple-800" />
-                  </div>
-                  <h3 className="mb-2 text-sm font-medium text-gray-800">Profile</h3>
-                </div>
-              </div>
-            </div> */}
-            
+
             {/* Quick Actions */}
             <div className="p-6 bg-white rounded-lg shadow-lg">
               <h2 className="mb-4 text-xl font-bold text-gray-800">Quick Actions</h2>
@@ -103,65 +86,23 @@ const Dashboard = ({ user, onLogout, totalVisitors = 0, totalVendors = 0 }) => {
                 </button>
               </div>
             </div>
-            
+
             {/* Stats Cards */}
             <div className="grid grid-cols-1 gap-6 mt-6 md:grid-cols-3 lg:grid-cols-8">
-              <div
-                // onClick={handleVisitorsNavigation}
-                className="p-2 transition-all duration-300 bg-transparent cursor-pointer hover:shadow-xl hover:-translate-y-1 hover:border-purple-200"
-              >
+              <div className="p-2 transition-all duration-300 bg-transparent cursor-pointer hover:shadow-xl hover:-translate-y-1 hover:border-purple-200">
                 <div className="flex flex-col items-center">
                   <div className="flex items-center justify-center w-10 h-10 mb-3 bg-transparent border border-purple-800 rounded-full shadow-md">
                     <Users className="w-4 h-4 text-purple-800" />
                   </div>
                   <p className="mb-1 text-2xl font-bold text-gray-900">{totalVisitors}</p>
                   <h3 className="font-semibold text-gray-700 text-md">Visitors</h3>
-                  {/* <p className="mt-1 text-xs text-gray-500">Total registered</p> */}
                 </div>
               </div>
-              
-              {/* <div
-                onClick={handleVendorsNavigation}
-                className="p-6 transition-all duration-300 bg-transparent border border-gray-100 rounded-lg shadow-lg cursor-pointer hover:shadow-xl hover:-translate-y-1 hover:border-purple-200"
-              >
-                <div className="flex flex-col items-center">
-                  <div className="flex items-center justify-center w-12 h-12 mb-3 rounded-full shadow-md bg-gradient-to-r from-blue-500 to-blue-600">
-                    <Users className="w-6 h-6 text-white" />
-                  </div>
-                  <p className="mb-1 text-3xl font-bold text-gray-900">{totalVendors}</p>
-                  <h3 className="text-lg font-semibold text-gray-700">Vendors</h3>
-                  <p className="mt-1 text-sm text-gray-500">Total registered</p>
-                </div>
-              </div> */}
-              
-              {/* Additional stats cards can be added here */}
-              {/* <div className="p-6 bg-white border border-gray-100 rounded-lg shadow-lg">
-                <div className="flex flex-col items-center">
-                  <div className="flex items-center justify-center w-12 h-12 mb-3 rounded-full shadow-md bg-gradient-to-r from-green-500 to-green-600">
-                    <Shield className="w-6 h-6 text-white" />
-                  </div>
-                  <p className="mb-1 text-3xl font-bold text-gray-900">Active</p>
-                  <h3 className="text-lg font-semibold text-gray-700">Security</h3>
-                  <p className="mt-1 text-sm text-gray-500">System status</p>
-                </div>
-              </div>
-              
-              <div className="p-6 bg-white border border-gray-100 rounded-lg shadow-lg">
-                <div className="flex flex-col items-center">
-                  <div className="flex items-center justify-center w-12 h-12 mb-3 rounded-full shadow-md bg-gradient-to-r from-orange-500 to-orange-600">
-                    <FileText className="w-6 h-6 text-white" />
-                  </div>
-                  <p className="mb-1 text-3xl font-bold text-gray-900">{totalVisitors + totalVendors}</p>
-                  <h3 className="text-lg font-semibold text-gray-700">Total Entries</h3>
-                  <p className="mt-1 text-sm text-gray-500">All time</p>
-                </div>
-              </div> */}
             </div>
-            
+
             <hr className="my-6 border-gray-200" />
           </div>
         );
-
       case 'gatecheck':
         return (
           <div className="space-y-6">
@@ -176,7 +117,6 @@ const Dashboard = ({ user, onLogout, totalVisitors = 0, totalVendors = 0 }) => {
             </div>
           </div>
         );
-
       case 'profile':
         return (
           <div className="space-y-6">
@@ -213,7 +153,6 @@ const Dashboard = ({ user, onLogout, totalVisitors = 0, totalVendors = 0 }) => {
             </div>
           </div>
         );
-
       case 'organization':
         return (
           <div className="space-y-6">
@@ -229,7 +168,6 @@ const Dashboard = ({ user, onLogout, totalVisitors = 0, totalVendors = 0 }) => {
             </div>
           </div>
         );
-
       default:
         return <div>Page not found</div>;
     }

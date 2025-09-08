@@ -77,7 +77,7 @@ export const api = {
   },
   visitors: {
     create: (visitorData) => axiosInstance.post('/visitors/visitors/', visitorData),
-    getAll: (params) => axiosInstance.get('/visitors/visitors/', { params }),
+    getAll: ({ companyId, ...params }) => axiosInstance.get(`visitors/company/${companyId}/visitors/`, { params }),
     getRecurring: (params) => axiosInstance.get('/visitors/filter/?pass_type=recurring   ', { params }),
     update: (visitorId, visitorData) => axiosInstance.put(`/visitors/${visitorId}/`, visitorData),
     delete: (visitorId) => axiosInstance.delete(`/visitors/${visitorId}/`),

@@ -44,9 +44,9 @@ const UserRoleModal = ({ isOpen, onClose, title, userRole, onChange, onSubmit, s
               <option value="">Select a role</option>
               {roles.map((role) => (
                 <option key={role.
-role_id} value={role.
-role_id
-}>{role.name}</option>
+                  role_id} value={role.
+                  role_id
+                  }>{role.name}</option>
               ))}
             </select>
           </div>

@@ -21,6 +21,7 @@ import Permissions from './components/RolesPermissions/Permissions/PermissionsPa
 import RolePermissionsPage from './components/RolesPermissions/RolePermissionsPage';
 import UserRole from './components/Users/Roles/UserRole';
 import CategoryPage from './components/GateCheck/Categories/CategoryPage';
+import { AuthProvider } from './context/AuthContext';
 
 // Configuration for demo/production mode
 const DEMO_MODE = true; // Set to false to enable full authentication
@@ -254,7 +255,7 @@ function App() {
   }
 
   return (
-    <div className="w-screen h-screen overflow-hidden bg-gray-50">
+    <AuthProvider className="w-screen h-screen overflow-hidden bg-gray-50">
       <Routes>
         <Route
           path="/login"
@@ -319,8 +320,8 @@ function App() {
                             <GateCheck
                               onVisitorCountChange={handleVisitorCountChange}
                               onVendorsCountChange={handleVendorCountChange}
-                              onCategoryCountsChange={handleCategoryCountsChange} // Pass the callback
-                              userCompany={userProfile?.company}
+                              onCategoryCountsChange={handleCategoryCountsChange}
+                              userCompany={userProfile?.company_id} // Ensure this is the ID, not the name
                               user={userProfile}
                             />
                           }
@@ -374,7 +375,7 @@ function App() {
           }
         />
       </Routes>
-    </div>
+    </AuthProvider>
   );
 }
 

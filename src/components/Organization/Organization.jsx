@@ -330,12 +330,12 @@ const Organization = ({ userProfile, user, onLogout }) => {
 
   const handleAddUser = (orgId) => {
     const organization = organizations.find(org => org.id === orgId);
-    console.log('Selected organization for adding user:', organization);
     setSelectedOrgId(orgId);
     setSelectedOrgForUser(organization);
     setShowAddUserModal(true);
   };
 
+  
   const handleViewUsers = async (organization) => {
     console.log('Viewing users for organization:', organization.company_name);
     const users = await api.organization.companyId(organization.id);

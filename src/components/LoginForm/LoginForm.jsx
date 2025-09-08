@@ -2,6 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Eye, EyeOff, RefreshCw, User, Loader2, ArrowLeft } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api, setupAxiosInterceptors } from '../Auth/api';
+import { useDispatch } from 'react-redux';
+import { setCredentials } from '../../store/slices/userSlice';
+import { cleanup } from '@testing-library/react';
 
 const LoginForm = ({ onLogin }) => {
   const [currentStep, setCurrentStep] = useState(1);
@@ -14,6 +17,7 @@ const LoginForm = ({ onLogin }) => {
   const [errors, setErrors] = useState({});
   const [isMobile, setIsMobile] = useState(false);
   const navigate = useNavigate();
+  const dispatch = useDispatch();
 
   const generateCaptcha = useCallback(() => {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -152,6 +156,19 @@ const LoginForm = ({ onLogin }) => {
         navigate('/dashboard');
       }
 
+          const cleanData = {
+      access: response.data.data.access,
+      refresh: response.data.data.refresh,
+      user: {
+        ...response.data.data.user,
+        roles: response.data.data.user["roles "] || response.data.data.user.roles,
+      },
+    };
+
+    dispatch(setCredentials(cleanData));
+  
+
+console.log("Dispatched user data to Redux:", cleanData);
       if (response.data) {
         const { access, refresh, user, data: responseData } = response.data;
         const authToken = access || responseData?.access || '';
@@ -240,7 +257,7 @@ const LoginForm = ({ onLogin }) => {
               <div className={`absolute inset-0 p-4 sm:p-8 lg:p-12 flex flex-col justify-center transition-transform duration-500 ease-in-out ${currentStep === 1 ? 'translate-x-0' : '-translate-x-full'}`}>
                 <div className="w-full max-w-sm p-4 mx-auto bg-white border-2 border-purple-400 border-solid shadow-xl rounded-xl sm:p-8">
                   <div className="mb-4 text-center sm:mb-8">
-                    <h1 className="mb-2 text-base font-bold tracking-wider text-purple-800 sm:text-lg sm:mb-4">SMART CHECK</h1>
+                    <h1 className="mb-2 text-base font-bold tracking-wider text-purple-800 sm:text-lg sm:mb-4">GATE CHECK</h1>
                     <h2 className="text-xl font-bold text-gray-800 sm:text-xl">Sign In</h2>
                   </div>
                   <div className="space-y-2 sm:space-y-4">

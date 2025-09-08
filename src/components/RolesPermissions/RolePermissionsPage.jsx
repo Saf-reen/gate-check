@@ -40,6 +40,7 @@ const RolePermissionsPage = () => {
       ]);
       
       setRolePermissions(rolePermissionsResponse.data);
+      console.log(rolePermissionsResponse.data, "rolePermissionsResponse");
       setRoles(rolesResponse.data);
       setPermissions(permissionsResponse.data);
     } catch (err) {

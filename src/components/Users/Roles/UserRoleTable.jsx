@@ -13,29 +13,33 @@ const UserRoleTable = ({ userRoles, onEdit, onShowEditModal, onDelete }) => {
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
-          {userRoles.map((userRole) => (
-            <tr key={userRole.id}>
-              <td className="px-6 py-4 whitespace-nowrap">{userRole.user}</td>
-              <td className="px-6 py-4 whitespace-nowrap">{userRole.role}</td>
-              <td className="px-6 py-4 text-sm whitespace-nowrap">
-                <button
-                  onClick={() => {
-                    onEdit(userRole.user_role_id);
-                    onShowEditModal(true);
-                  }}
-                  className="text-indigo-600 hover:text-indigo-900"
-                >
-                  <Edit size={18} />
-                </button>
-                <button
-                  onClick={() => onDelete(userRole.user_role_id)}
-                  className="ml-4 text-red-600 hover:text-red-900"
-                >
-                  <Trash2 size={18} />
-                </button>
-              </td>
-            </tr>
-          ))}
+          {userRoles.map((userRole) => {
+            // Debug: log userRole object structure
+            console.log('UserRoleTable row:', userRole);
+            return (
+              <tr key={userRole.user_role_id || userRole.id}>
+                <td className="px-6 py-4 whitespace-nowrap">{userRole.user}</td>
+                <td className="px-6 py-4 whitespace-nowrap">{userRole.role}</td>
+                <td className="px-6 py-4 text-sm whitespace-nowrap">
+                  <button
+                    onClick={() => {
+                      onEdit(userRole);
+                      onShowEditModal(true);
+                    }}
+                    className="text-indigo-600 hover:text-indigo-900"
+                  >
+                    <Edit size={18} />
+                  </button>
+                  <button
+                    onClick={() => onDelete(userRole.user_role_id || userRole.id)}
+                    className="ml-4 text-red-600 hover:text-red-900"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>

@@ -264,7 +264,7 @@ const ForgotPassword = () => {
                 <div className="absolute inset-0 flex flex-col justify-center p-4 sm:p-8 lg:p-12">
                   <div className="w-full max-w-sm p-4 mx-auto bg-white border-2 border-purple-800 border-solid shadow-xl rounded-xl sm:p-8">
                     <div className="mb-4 text-center sm:mb-8">
-                      <h1 className="mb-2 text-base font-bold tracking-wider text-purple-800 sm:text-lg sm:mb-4">SMART CHECK</h1>
+                      <h1 className="mb-2 text-base font-bold tracking-wider text-purple-800 sm:text-lg sm:mb-4"> CHECK</h1>
                       <h2 className="text-xl font-bold text-gray-800 sm:text-xl">Reset Password</h2>
                       <p className="mt-2 text-xs text-gray-600 sm:text-sm">
                         {currentStep === "email" && "Enter your email to receive a reset code"}

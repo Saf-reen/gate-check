@@ -279,7 +279,7 @@ const VisitorTable = ({
   const getActionButtons = useCallback((visitor) => {
     const buttons = [];
 
-    // PENDING status: Show Approve/Reject for today, Reschedule for past, Check In for future
+    // PENDING status: Show Approve/Reject for today, Reschedule for past (only if not CHECKED_IN), Check In for future
     if (visitor.status === 'PENDING') {
       if (isVisitingDateToday(visitor.visiting_date)) {
         buttons.push(
@@ -311,23 +311,31 @@ const VisitorTable = ({
           </button>
         );
       } else if (isVisitingDatePast(visitor.visiting_date)) {
+        // Show 'Past' label and reschedule button only if visitor is not CHECKED_IN
         buttons.push(
-          <button
-            key="reschedule"
-            onClick={() => handleReschedule(visitor)}
-            disabled={loadingActions[`${visitor.id}-reschedule`]}
-            className="px-2 py-1 text-xs text-orange-600 border border-orange-600 rounded hover:text-orange-900 hover:bg-orange-50 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loadingActions[`${visitor.id}-reschedule`] ? (
-              <Loader2 className="w-3 h-3 animate-spin" />
-            ) : (
-              <>
-                <RefreshCw className="inline w-3 h-3 mr-1" />
-                Reschedule
-              </>
-            )}
-          </button>
+          <span key="past-label" className="inline-block px-2 py-1 mr-2 text-xs font-semibold text-gray-500 bg-gray-100 rounded">Past</span>
         );
+        
+        // Only show reschedule button if visitor is not CHECKED_IN
+        if (visitor.status !== 'CHECKED_IN') {
+          buttons.push(
+            <button
+              key="reschedule"
+              onClick={() => handleReschedule(visitor)}
+              disabled={loadingActions[`${visitor.id}-reschedule`]}
+              className="px-2 py-1 text-xs text-orange-600 border border-orange-600 rounded hover:text-orange-900 hover:bg-orange-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loadingActions[`${visitor.id}-reschedule`] ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : (
+                <>
+                  <RefreshCw className="inline w-3 h-3 mr-1" />
+                  Reschedule
+                </>
+              )}
+            </button>
+          );
+        }
       } else if (isVisitingDateFuture(visitor.visiting_date)) {
         buttons.push(
           <button
@@ -469,9 +477,9 @@ const VisitorTable = ({
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-500">
-                          {visitor.category_name && (
+                          {visitor.category_details.name && (
                             <span className="px-2 py-1 ml-2 text-xs text-blue-800 bg-blue-100 rounded-full">
-                              {getCategoryLabel(visitor.category_name)}
+                              {getCategoryLabel(visitor.category_details.name)}
                             </span>
                           )}
                         </div>
@@ -666,7 +674,7 @@ const VisitorTable = ({
         </div>
       )}
     </>
-  );
-};
-
-export default VisitorTable;
+    );
+  };
+  
+  export default VisitorTable;

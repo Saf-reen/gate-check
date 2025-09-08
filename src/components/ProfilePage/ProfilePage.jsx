@@ -145,6 +145,7 @@ const ProfilePage = ({ user: propUser, onLogout, onProfileUpdate }) => {
       email: getDisplayValue(user.email),
       mobile: getDisplayValue(user.mobile_number || user.phone || user.phoneNumber),
       aliasName: getDisplayValue(user.alias_name || user.alias || user.displayName),
+      role: getDisplayValue(user.roles),
       blockBuilding: getDisplayValue(user.blockBuilding || user.building || user.block),
       floor: getDisplayValue(user.floor),
       address: getDisplayValue(user.company?.address),

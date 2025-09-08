@@ -1,5 +1,5 @@
 {
-  "name": "smart_check",
+  "name": "gate_check",
   "version": "0.1.0",
   "private": true,
   "dependencies": {
