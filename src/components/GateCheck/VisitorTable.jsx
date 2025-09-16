@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../Auth/api';
 import {
   Users, MoreVertical, Phone, Clock, User, Calendar, MapPin, Car, Mail,
-  Building2, Loader2, X, Tag, FileText, RefreshCw
+  Building2, Loader2, X, Tag, FileText, RefreshCw, Lock
 } from 'lucide-react';
 
 const VisitorTable = ({
@@ -17,6 +17,14 @@ const VisitorTable = ({
 }) => {
   const [loadingActions, setLoadingActions] = useState({});
   const [openDropdown, setOpenDropdown] = useState(null);
+  const [otpModal, setOtpModal] = useState({
+    isOpen: false,
+    visitor: null,
+    type: '', // 'checkin' or 'checkout'
+    otp: '',
+    error: '',
+    isVerifying: false
+  });
   const [rescheduleModal, setRescheduleModal] = useState({
     isOpen: false,
     visitor: null,
@@ -26,23 +34,6 @@ const VisitorTable = ({
   });
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
-
-  // Fixed useEffect for click outside detection
-  // useEffect(() => {
-  //   const handleClickOutside = (event) => {
-  //     if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-  //       setOpenDropdown(null);
-  //     }
-  //   };
-
-  //   if (openDropdown !== null) {
-  //     document.addEventListener('mousedown', handleClickOutside);
-  //   }
-
-  //   return () => {
-  //     document.removeEventListener('mousedown', handleClickOutside);
-  //   };
-  // }, [openDropdown]);
 
   // Memoized function to check if visiting time is in the past
   const isVisitingTimeInPast = useCallback((visitingDate, visitingTime) => {
@@ -62,7 +53,108 @@ const VisitorTable = ({
     return visitDate < now;
   }, []);
 
+  // Handle OTP Modal
+  const handleOtpAction = (visitor, actionType) => {
+    setOtpModal({
+      isOpen: true,
+      visitor: visitor,
+      type: actionType,
+      otp: '',
+      error: '',
+      isVerifying: false
+    });
+    setOpenDropdown(null);
+  };
+
+  const closeOtpModal = () => {
+    setOtpModal({
+      isOpen: false,
+      visitor: null,
+      type: '',
+      otp: '',
+      error: '',
+      isVerifying: false
+    });
+  };
+
+  const handleOtpSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!otpModal.otp.trim()) {
+      setOtpModal(prev => ({ ...prev, error: 'Please enter OTP' }));
+      return;
+    }
+
+    if (otpModal.otp.length !== 6) {
+      setOtpModal(prev => ({ ...prev, error: 'OTP must be 6 digits' }));
+      return;
+    }
+
+    setOtpModal(prev => ({ ...prev, isVerifying: true, error: '' }));
+    const passId = otpModal.visitor.pass_id;
+    console.log(passId);
+    try {
+      let response;
+      let otpPayload = {
+        otp: otpModal.otp,
+        action: otpModal.type == "checkin" ?"entry":"exit",
+      };
+console.log(otpPayload)
+      console.log("inside try block ")
+        console.log("otp modal type ",otpModal.type)
+
+      if (otpModal.type === 'checkin') {
+        // Call entry OTP verification endpoint
+        response = await api.visitors.verifyEntryOtp(passId, otpPayload);
+      } else if (otpModal.type === 'checkout') {
+
+        console.log("excuting checkout  ")
+        // Call exit OTP verification endpoint
+        
+        response = await api.visitors.verifyExitOtp(passId, otpPayload);
+        console.log(response)
+      }
+
+      // Check if OTP is valid
+      if (response && response.status === 200) {
+        // OTP is valid
+        const actionType = otpModal.type;
+        const newStatus = actionType === 'entry' ? 'CHECKED_IN' : 'CHECKED_OUT';
+        
+        // Show success message
+        alert(`Valid OTP! Visitor ${actionType === 'entry' ? 'entered' : 'exit'} successfully.`);
+        
+        // Update visitor status
+        if (onVisitorUpdate) {
+          onVisitorUpdate(passId, newStatus, actionType);
+        }
+        
+        // Close modal
+        closeOtpModal();
+      } else {
+        throw new Error('Invalid OTP');
+      }
+    } catch (error) {
+      console.error(`Failed to verify ${otpModal.type} OTP:`, error);
+      console.log(error);
+      setOtpModal(prev => ({ 
+        ...prev, 
+        error: 'Invalid OTP. Please try again.',
+        isVerifying: false 
+      }));
+    } finally {
+      setOtpModal(prev => ({ ...prev, isVerifying: false }));
+    }
+  };
+
   const handleStatusUpdate = async (visitorId, newStatus, actionType) => {
+    // For checkin and checkout, show OTP modal instead of direct API call
+    if (actionType === 'checkin' || actionType === 'checkout') {
+      const visitor = filteredVisitors.find(v => v.id === visitorId);
+      handleOtpAction(visitor, actionType);
+      return;
+    }
+
     setLoadingActions(prev => ({ ...prev, [`${visitorId}-${actionType}`]: true }));
     
     try {
@@ -74,38 +166,16 @@ const VisitorTable = ({
         case 'reject':
           response = await api.visitors.reject(visitorId);
           break;
-        case 'checkin':
-          response = await api.visitors.checkin(visitorId);
-          console.log('Checkin response:', response);
-          break;
-        case 'checkout':
-          response = await api.visitors.checkout(visitorId);
-          console.log('Checkout response:', response);
-          break;
         default:
           throw new Error(`Unknown action type: ${actionType}`);
       }
 
       // Check if response is successful (status 200-299)
       if (response && (response.status === 200)) {
-        let actualStatus = newStatus;
-
-        // For checkin action, if successful, set status to CHECKED_IN
-        if (actionType === 'checkin') {
-          actualStatus = 'CHECKED_IN';
-          console.log(`Setting visitor ${visitorId} status to CHECKED_IN`);
-        }
-        
-        // For checkout action, if successful, set status to CHECKED_OUT
-        if (actionType === 'checkout') {
-          actualStatus = 'CHECKED_OUT';
-          console.log(`Setting visitor ${visitorId} status to CHECKED_OUT`);
-        }
-
-        console.log('Calling onVisitorUpdate with:', { visitorId, actualStatus, actionType });
+        console.log('Calling onVisitorUpdate with:', { visitorId, newStatus, actionType });
         
         if (onVisitorUpdate) {
-          onVisitorUpdate(visitorId, actualStatus, actionType);
+          onVisitorUpdate(visitorId, newStatus, actionType);
         } else {
           console.warn('onVisitorUpdate callback is not provided!');
         }
@@ -341,14 +411,9 @@ const VisitorTable = ({
           <button
             key="checkin"
             onClick={() => handleStatusUpdate(visitor.id, 'CHECKED_IN', 'checkin')}
-            disabled={loadingActions[`${visitor.id}-checkin`]}
-            className="px-2 py-1 text-xs text-blue-600 border border-blue-600 rounded hover:text-blue-900 hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-2 py-1 text-xs text-blue-600 border border-blue-600 rounded hover:text-blue-900 hover:bg-blue-50"
           >
-            {loadingActions[`${visitor.id}-checkin`] ? (
-              <Loader2 className="w-3 h-3 animate-spin" />
-            ) : (
-              'Check In'
-            )}
+            Check In
           </button>
         );
       }
@@ -361,14 +426,9 @@ const VisitorTable = ({
           <button
             key="checkout"
             onClick={() => handleStatusUpdate(visitor.id, 'CHECKED_OUT', 'checkout')}
-            disabled={loadingActions[`${visitor.id}-checkout`]}
-            className="px-2 py-1 text-xs text-gray-600 border border-gray-600 rounded hover:text-gray-900 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-2 py-1 text-xs text-gray-600 border border-gray-600 rounded hover:text-gray-900 hover:bg-gray-50"
           >
-            {loadingActions[`${visitor.id}-checkout`] ? (
-              <Loader2 className="w-3 h-3 animate-spin" />
-            ) : (
-              'Check Out'
-            )}
+            Check Out
           </button>
         );
       } else {
@@ -376,14 +436,9 @@ const VisitorTable = ({
           <button
             key="checkin"
             onClick={() => handleStatusUpdate(visitor.id, 'CHECKED_IN', 'checkin')}
-            disabled={loadingActions[`${visitor.id}-checkin`]}
-            className="px-2 py-1 text-xs text-blue-600 border border-blue-600 rounded hover:text-blue-900 hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-2 py-1 text-xs text-blue-600 border border-blue-600 rounded hover:text-blue-900 hover:bg-blue-50"
           >
-            {loadingActions[`${visitor.id}-checkin`] ? (
-              <Loader2 className="w-3 h-3 animate-spin" />
-            ) : (
-              'Check In'
-            )}
+            Check In
           </button>
         );
       }
@@ -395,20 +450,15 @@ const VisitorTable = ({
         <button
           key="checkout"
           onClick={() => handleStatusUpdate(visitor.id, 'CHECKED_OUT', 'checkout')}
-          disabled={loadingActions[`${visitor.id}-checkout`]}
-          className="px-2 py-1 text-xs text-gray-600 border border-gray-600 rounded hover:text-gray-900 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-2 py-1 text-xs text-gray-600 border border-gray-600 rounded hover:text-gray-900 hover:bg-gray-50"
         >
-          {loadingActions[`${visitor.id}-checkout`] ? (
-            <Loader2 className="w-3 h-3 animate-spin" />
-          ) : (
-            'Check Out'
-          )}
+          Check Out
         </button>
       );
     }
 
+    // CHECKED_OUT status: Show nothing (empty space)
     // REJECTED status: No buttons (stays rejected)
-    // CHECKED_OUT status: No buttons (visitor has left)
 
     return buttons;
   }, [loadingActions, handleStatusUpdate]);
@@ -579,6 +629,92 @@ const VisitorTable = ({
           </div>
         </div>
       </div>
+
+      {/* OTP Modal */}
+      {otpModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="w-full max-w-md mx-4 bg-white rounded-lg shadow-lg">
+            <div className="flex items-center justify-between px-6 py-4 border-b">
+              <h3 className="text-lg font-medium text-gray-900">
+                {otpModal.type === 'checkin' ? 'Entry OTP Verification' : 'Exit OTP Verification'}
+              </h3>
+              <button
+                onClick={closeOtpModal}
+                className="text-gray-400 hover:text-gray-600"
+                disabled={otpModal.isVerifying}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <form onSubmit={handleOtpSubmit} className="px-6 py-4">
+              <div className="mb-4">
+                <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-blue-100 rounded-full">
+                  <Lock className="w-8 h-8 text-blue-600" />
+                </div>
+                
+                <p className="mb-4 text-sm text-center text-gray-600">
+                  Enter the {otpModal.type === 'checkin' ? 'entry' : 'exit'} OTP for{' '}
+                  <strong>{otpModal.visitor?.visitor_name}</strong>
+                </p>
+                
+                <div className="mb-4">
+                  <label className="block mb-2 text-sm font-medium text-gray-700">
+                    OTP Code
+                  </label>
+                  <input
+                    type="text"
+                    value={otpModal.otp}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/\D/g, '').slice(0, 6);
+                      setOtpModal(prev => ({ 
+                        ...prev, 
+                        otp: value,
+                        error: ''
+                      }));
+                    }}
+                    placeholder="Enter 6-digit OTP"
+                    maxLength="6"
+                    className={`w-full px-3 py-2 text-center text-lg font-mono border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      otpModal.error ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    disabled={otpModal.isVerifying}
+                    autoFocus
+                  />
+                  {otpModal.error && (
+                    <p className="mt-1 text-xs text-red-600">{otpModal.error}</p>
+                  )}
+                </div>
+              </div>
+              
+              <div className="flex space-x-3">
+                <button
+                  type="button"
+                  onClick={closeOtpModal}
+                  disabled={otpModal.isVerifying}
+                  className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={otpModal.isVerifying || !otpModal.otp.trim()}
+                  className="flex-1 px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {otpModal.isVerifying ? (
+                    <div className="flex items-center justify-center">
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Verifying...
+                    </div>
+                  ) : (
+                    'Verify OTP'
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Reschedule Modal */}
       {rescheduleModal.isOpen && (

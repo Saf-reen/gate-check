@@ -182,20 +182,20 @@ const Header = ({
                         className="hidden"
                       />
                     </label>
-                    <button
+                    {/* <button
                       onClick={exportToExcel}
                       className="flex items-center w-full px-3 py-2 text-sm text-left text-gray-700 hover:bg-gray-50"
                     >
                       <Download className="w-4 h-4 mr-2" />
                       Export
-                    </button>
+                    </button> */}
                   </div>
                 </div>
               )}
             </div>
           </div>
         </div>
-        <div className="flex items-center justify-between mt-3 text-sm text-gray-600">
+        {/* <div className="flex items-center justify-between mt-3 text-sm text-gray-600">
           <div className="flex space-x-6">
             <span>Total: {totalVisitors}</span>
             {!showRecurring && (
@@ -211,7 +211,7 @@ const Header = ({
             <span className="text-purple-600">Recurring: {recurringCount}</span>
             <span className="text-indigo-600">Permanent: {permanentCount}</span>
           </div>
-        </div>
+        </div> */}
       </div>
     </div>
   );

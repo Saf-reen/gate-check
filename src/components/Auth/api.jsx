@@ -92,6 +92,8 @@ export const api = {
     checkout: (visitorId) => axiosInstance.post(`/visitors/visitors/${visitorId}/entry-exit/`, { action: 'exit' }),
     getQR: (visitorId) => axiosInstance.get(`/visitors/visitors/${visitorId}/`),
     reschedule: (visitorId, payload) => axiosInstance.post(`/visitors/visitors/${visitorId}/reschedule/`, payload),
+    verifyEntryOtp: (passId, payload) => axiosInstance.post(`/visitors/visitors/${passId}/entry-exit/`, payload),
+    verifyExitOtp: (passId, payload) => axiosInstance.post(`/visitors/visitors/${passId}/entry-exit/`,payload),
   },
   // Organization endpoints
   organization: {

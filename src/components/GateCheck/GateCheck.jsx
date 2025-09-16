@@ -108,6 +108,7 @@ const GateCheck = ({ onVisitorCountChange, userCompany, user }) => {
       setErrors(prev => ({ ...prev, general: "" }));
       const companyId = userCompany;
       const visitorsResponse = await api.visitors.getAll({ companyId });
+      console.log(visitorsResponse);
       if (visitorsResponse?.data) {
         const visitorsData = visitorsResponse.data.visitors || visitorsResponse.data;
         const visitorsArray = Array.isArray(visitorsData) ? visitorsData : [];
