@@ -4,7 +4,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import { api, setupAxiosInterceptors } from '../Auth/api';
 import { useDispatch } from 'react-redux';
 import { setCredentials } from '../../store/slices/userSlice';
-import { cleanup } from '@testing-library/react';
 
 const LoginForm = ({ onLogin }) => {
   const [currentStep, setCurrentStep] = useState(1);
